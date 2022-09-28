@@ -1,4 +1,4 @@
-# typescript
+# typescript-jit
 
 This is a Rust native implementation of a Typescript Parser and a JIT execution engine.
 
