@@ -1,0 +1,46 @@
+Number = @{ (ASCII_DIGIT | "." | "-" | "_")+ }
+Name = @{ ASCII_ALPHA ~ (ASCII_ALPHANUMERIC | "_")* }
+String = @{ "\"" ~ (ASCII_ALPHANUMERIC | "." | " " | "\\" | "/")* ~ "\"" }
+Identifier = @{ Name ~ ("." ~ Name)* }
+True = { "true" }
+False = { "false" }
+Null = { "null" }
+Undefined = { "undefined" }
+Operand = @{ "+" | "-" | "*" | "/" | "%" | "<" | ">" | "<=" | ">=" | "&&" | "||" | "==" | "!="}
+Term = { Number | String | Call | Identifier | "(" ~ Expression ~ ")" }
+Expression = {
+    Term ~ Operand ~ Term
+    | Term
+}
+
+CallList = { Expression ~ ("," ~ Expression)* }
+Call = { Identifier ~ "(" ~ CallList ~ ")" ~ ";"? }
+Const = { "const" ~ Name ~ "=" ~ Expression ~ ";"? }
+Let = { "let" ~ Name ~ "=" ~ Expression ~ ";"? }
+Assign = { Identifier ~ "=" ~ Expression ~ ";"? }
+
+Block = { "{" ~ Statement* ~ "}" }
+If = { "if" ~ "(" ~ Expression ~ ")" ~ Block ~ ElseIf* ~ Else? }
+ElseIf = { "else" ~ "if" ~ "(" ~ Expression ~ ")" ~ Block }
+Else = { "else" ~ Block }
+
+NameList = { Name ~ ("," ~ Name)* }
+IdentifierList = { Identifier ~ ("," ~ Identifier)* }
+
+Interface = { "interface" ~ Name ~ "extends" ~ IdentifierList ~ "{" ~ "}" }
+Class = { "class" ~ Name ~ ("extends" ~ Identifier)? ~ ("implements" ~ IdentifierList)? ~ "{" ~ "}" }
+
+TypeIdentifier = { "boolean" | "null" | "any" | "number" | "string" | "void" | Identifier }
+Param = { Name ~ (":" ~ TypeIdentifier)? }
+ParamList = { Param? ~ ("," ~ Param)* }
+Function = { "function" ~ Name ~ "(" ~ ParamList ~ ")" ~ Block }
+
+Statement = { Const | Let | Assign | If | Function | Call }
+Import = { "import" ~ String }
+ImportName = { Name ~ ("as" ~ Name)? }
+ImportNameList = { ImportName ~ ("," ~ ImportName)* }
+ImportFrom = { "import" ~ "{" ~ ImportNameList ~ "}" ~ "from" ~ String }
+Statements = { SOI ~ (Import | ImportFrom | Interface | Class | Statement)* ~ EOI }
+
+WHITESPACE = _{ " " | "\n" | "\t" | "\r" }
+COMMENT = _{ "//" ~ (!"\n" ~ ANY)* }

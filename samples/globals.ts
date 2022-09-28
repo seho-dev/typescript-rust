@@ -1,0 +1,1 @@
+declare function print(one: any): void

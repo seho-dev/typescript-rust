@@ -1,0 +1,29 @@
+[package]
+name = "typescript"
+version = "0.1.0"
+edition = "2021"
+authors = ["Void <arne_simon@gmx.de>"]
+description = "A native Typescript parser and JIT runner."
+documentation = "https://docs.rs/typescript"
+readme = "README.md"
+keywords = ["typescript", "javascript", "ts", "js", "jit", "parser", "awesome"]
+categories = ["compilers", "parsing"]
+license = "MIT"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[profile.release]
+strip = true
+lto = true
+
+[features]
+default = ["trace"]
+# default = []
+trace = []
+
+[dependencies]
+log = {version = "*", features = ["std"]}
+pest = "*"
+pest_derive = "*"
+llvm-sys = "140"
+sha2 = "*"
+hex = "*"
