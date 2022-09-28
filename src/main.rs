@@ -1,6 +1,6 @@
 use std::{fs::File, io::Write, sync::Mutex};
 
-use typescript;
+use typescript_jit as ts;
 
 struct MyLogger{
     file: Mutex<File>,
@@ -28,7 +28,7 @@ fn main() {
     log::set_max_level(log::LevelFilter::Trace);
     // log::set_max_level(log::LevelFilter::Info);
 
-    let runtime = typescript::jit::Runtime::new();
+    let runtime = ts::jit::Runtime::new();
 
     match runtime.load_file("samples/sample.ts") {
         Ok(n) => {
