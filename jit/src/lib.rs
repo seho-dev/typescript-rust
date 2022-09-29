@@ -11,7 +11,7 @@ use llvm_sys::{
 };
 use sha2::Digest;
 
-use crate::parser;
+use typescript_ast::parser;
 
 use self::module::Module;
 
@@ -44,7 +44,7 @@ impl Runtime {
         }
     }
 
-    pub fn load_file<P: AsRef<Path>>(&self, filename: P) -> Result<Arc<Module>, Box<dyn Error>> {
+    pub fn load_file<P: AsRef<Path>>(&self, filename: P, save_ir: Option<String>) -> Result<Arc<Module>, Box<dyn Error>> {
         let start = SystemTime::now();
         let source = std::fs::read_to_string(filename)?;
         let hash = source_hash(&source);
@@ -61,7 +61,7 @@ impl Runtime {
             log::info!(target: "typescrtip.jit", "parse time: {}.{:06}", dur.as_secs(), dur.subsec_micros());
 
             let start = SystemTime::now();
-            let module = Arc::new(Module::from_ast(hash.clone(), ast_module));
+            let module = Arc::new(Module::from_ast(hash.clone(), ast_module, save_ir));
             let dur = start.elapsed().unwrap();
             log::info!(target: "typescript.jit", "compile time: {}.{:06}", dur.as_secs(), dur.subsec_micros());
 

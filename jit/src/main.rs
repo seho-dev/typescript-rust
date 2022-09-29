@@ -1,5 +1,6 @@
 use std::{fs::File, io::Write, sync::Mutex};
 
+use clap::Parser;
 use typescript_jit as ts;
 
 struct MyLogger{
@@ -21,16 +22,32 @@ impl log::Log for MyLogger {
     }
 }
 
+#[derive(Parser)]
+#[command(author, version, about)]
+struct Args {
+    filename: String,
+    /// show a execution log. This for debugging.
+    #[arg(short, long)]
+    log: Option<String>,
+    /// shows the LLVM IR code. This for debugging.
+    #[arg(short, long)]
+    ir: Option<String>,
+}
+
 fn main() {
-    log::set_boxed_logger(Box::new(MyLogger {
-        file: Mutex::new(File::create("typescript.log").unwrap()),
-    })).unwrap();
-    log::set_max_level(log::LevelFilter::Trace);
-    // log::set_max_level(log::LevelFilter::Info);
+    let args = Args::parse();
 
-    let runtime = ts::jit::Runtime::new();
+    if let Some(log) = args.log {
+        log::set_boxed_logger(Box::new(MyLogger {
+            file: Mutex::new(File::create(log).unwrap()),
+        })).unwrap();
+        log::set_max_level(log::LevelFilter::Trace);
+        // log::set_max_level(log::LevelFilter::Info);
+    }
 
-    match runtime.load_file("samples/sample.ts") {
+    let runtime = ts::Runtime::new();
+
+    match runtime.load_file(args.filename, args.ir) {
         Ok(n) => {
             log::info!("an -> {:?}", n.namespace.variables.get("an"));
             log::info!("bu -> {:?}", n.namespace.variables.get("bu"));

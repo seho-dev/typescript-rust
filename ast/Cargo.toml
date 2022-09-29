@@ -1,0 +1,20 @@
+[package]
+name = "typescript-ast"
+version = "0.1.0"
+edition = "2021"
+authors = ["Void <arne_simon@gmx.de>"]
+description = "A native Typescript parser."
+documentation = "https://docs.rs/typescript-ast"
+readme = "../README.md"
+keywords = ["typescript", "javascript", "ts", "js", "awesome"]
+categories = ["compilers", "parsing"]
+license = "MIT"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[profile.release]
+strip = true
+lto = true
+
+[dependencies]
+pest = "2"
+pest_derive = "2"

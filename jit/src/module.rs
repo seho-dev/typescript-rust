@@ -22,7 +22,7 @@ use llvm_sys::{
     prelude::{LLVMBuilderRef, LLVMContextRef, LLVMModuleRef, LLVMTypeRef, LLVMValueRef},
 };
 
-use crate::ast;
+use typescript_ast::ast;
 
 use super::{callbacks, context::Context, value::Value};
 
@@ -55,7 +55,7 @@ impl Module {
         self.id.clone()
     }
 
-    pub fn from_ast(id: Vec<u8>, m: ast::Module) -> Module {
+    pub fn from_ast(id: Vec<u8>, m: ast::Module, save_ir: Option<String>) -> Module {
         let id_hex = hex::encode(&id);
         let mut module = Self {
             id,
@@ -150,10 +150,10 @@ impl Module {
 
             LLVMDisposeBuilder(module.builder);
 
-            {
+            if let Some(ir) = save_ir {
                 let data = LLVMPrintModuleToString(module.module);
                 let cast = CStr::from_ptr(data);
-                let mut dump = File::create("main.ir").unwrap();
+                let mut dump = File::create(ir).unwrap();
                 dump.write(cast.to_bytes()).unwrap();
             }
 
