@@ -18,7 +18,17 @@ else {
     bu = 1
 }
 
-function doStuff(one: number) {
+interface TheInterface {}
+
+class TheClass implements TheInterface {}
+
+type MyType = {
+    must: string
+}
+
+type MyTypeToo = {can: boolean} | MyType
+
+function doStuff(one: number | string) {
     print("stuff")
 }
 

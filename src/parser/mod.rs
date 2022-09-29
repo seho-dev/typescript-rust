@@ -2,8 +2,8 @@ use std::{error::Error, path::Path, sync::Arc};
 
 use crate::ast::{
     module::{ImportAlias, Module, Import},
-    statement::{ElseIf, Param, Statement},
-    value::Value,
+    statement::{ElseIf, Param, Statement, ParamType},
+    value::Value, tstype::Type,
 };
 use pest::{iterators::Pair, Parser};
 use pest_derive::Parser;
@@ -50,6 +50,16 @@ fn parse_value(expr: Pair<Rule>) -> Arc<Value> {
     } else {
         Arc::new(parse_term(term))
     }
+}
+
+fn parse_param_kind(kind: Pair<Rule>) -> Vec<ParamType> {
+    let mut kinds = Vec::new();
+
+    for k in kind.into_inner() {
+        kinds.push(k.as_str().into());
+    }
+
+    kinds
 }
 
 fn parse_statement(stmnt: Pair<Rule>) -> Option<Statement> {
@@ -151,7 +161,7 @@ fn parse_statement(stmnt: Pair<Rule>) -> Option<Statement> {
 
                 params.push(Param {
                     name: name.as_str().to_string(),
-                    kind: inner.next().map(|n| n.as_str()).into(),
+                    kinds: parse_param_kind(inner.next().unwrap()),
                 });
             }
 
@@ -192,6 +202,55 @@ fn parse_statement(stmnt: Pair<Rule>) -> Option<Statement> {
         }
         _ => None,
     }
+}
+
+fn parse_interface(stmnt: Pair<Rule>) -> Statement {
+    let mut inner = stmnt.into_inner();
+
+    let name = inner.next().unwrap().as_str();
+    Statement::Interface { name: name.to_string() }
+}
+
+fn parse_class(stmnt: Pair<Rule>) -> Statement {
+    let mut inner = stmnt.into_inner();
+
+    let name = inner.next().unwrap().as_str();
+    Statement::Class { name: name.to_string() }
+}
+
+fn parse_type(stmnt: Pair<Rule>) -> Statement {
+    let mut inner = stmnt.into_inner();
+
+    let name = inner.next().unwrap().as_str();
+    let mut blocks = Vec::new();
+    let mut aggregates = Vec::new();
+
+    let mut attributes = Vec::new();
+    let definitions = inner.next().unwrap().into_inner();
+    for def in definitions {
+        match def.as_rule() {
+            Rule::TypeBlock => {
+                let tuple = def.into_inner().next().unwrap();
+                let mut inner = tuple.into_inner();
+                let name = inner.next().unwrap().as_str();
+                let kind = inner.next().unwrap();
+                attributes.push(Param { 
+                    name: name.to_string(),
+                    kinds: parse_param_kind(kind), 
+                });
+            }
+            Rule::Name => {
+                aggregates.push(def.as_str().to_string());
+            }
+            _ => {},
+        }
+    }
+
+    Statement::Type(Type { 
+        name: name.to_string(),
+        blocks,
+        aggregates,
+     })
 }
 
 pub fn file<T: AsRef<Path>>(filename: T) -> Result<Module, Box<dyn Error>> {
@@ -247,8 +306,15 @@ pub fn source(source: &str) -> Result<Module, Box<dyn Error>> {
                     path: filename[1..filename.len() - 1].to_string(),
                 })
             }
-            Rule::Interface => {}
-            Rule::Class => {}
+            Rule::Interface => {
+                module.statements.push(parse_interface(stmnt));
+            }
+            Rule::Class => {
+                module.statements.push(parse_class(stmnt));
+            }
+            Rule::Type => {
+                module.statements.push(parse_type(stmnt));
+            }
             Rule::Statement => {
                 if let Some(s) = parse_statement(stmnt) {
                     module.statements.push(s);

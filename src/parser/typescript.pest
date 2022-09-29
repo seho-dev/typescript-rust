@@ -27,11 +27,17 @@ Else = { "else" ~ Block }
 NameList = { Name ~ ("," ~ Name)* }
 IdentifierList = { Identifier ~ ("," ~ Identifier)* }
 
-Interface = { "interface" ~ Name ~ "extends" ~ IdentifierList ~ "{" ~ "}" }
-Class = { "class" ~ Name ~ ("extends" ~ Identifier)? ~ ("implements" ~ IdentifierList)? ~ "{" ~ "}" }
-
 TypeIdentifier = { "boolean" | "null" | "any" | "number" | "string" | "void" | Identifier }
-Param = { Name ~ (":" ~ TypeIdentifier)? }
+TypeIdentifiers = { TypeIdentifier ~ ("|" ~ TypeIdentifier) }
+
+Interface = { "interface" ~ Name ~ ("extends" ~ IdentifierList)? ~ "{" ~ "}" }
+Class = { "class" ~ Name ~ ("extends" ~ Identifier)? ~ ("implements" ~ IdentifierList)? ~ "{" ~ "}" }
+TypeTuple = { Name ~ ":" ~ TypeIdentifier }
+TypeBlock = { "{" ~ TypeTuple? ~ ("," ~ TypeTuple)* ~ ","? ~ "}" }
+TypeDefinition = { (Name | TypeBlock) ~ ("|" ~ (Name | TypeBlock))* }
+Type = { "type" ~ Name ~ "=" ~ TypeDefinition }
+
+Param = { Name ~ (":" ~ TypeIdentifiers)? }
 ParamList = { Param? ~ ("," ~ Param)* }
 Function = { "function" ~ Name ~ "(" ~ ParamList ~ ")" ~ Block }
 
@@ -40,7 +46,7 @@ Import = { "import" ~ String }
 ImportName = { Name ~ ("as" ~ Name)? }
 ImportNameList = { ImportName ~ ("," ~ ImportName)* }
 ImportFrom = { "import" ~ "{" ~ ImportNameList ~ "}" ~ "from" ~ String }
-Statements = { SOI ~ (Import | ImportFrom | Interface | Class | Statement)* ~ EOI }
+Statements = { SOI ~ (Import | ImportFrom | Interface | Class | Type | Statement)* ~ EOI }
 
 WHITESPACE = _{ " " | "\n" | "\t" | "\r" }
 COMMENT = _{ "//" ~ (!"\n" ~ ANY)* }

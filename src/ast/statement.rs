@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use super::value::Value;
+use super::{value::Value, tstype::Type};
 
 #[derive(Debug)]
 pub struct ElseIf {
@@ -12,15 +12,25 @@ pub struct ElseIf {
 pub enum ParamType {
     Any,
     Number,
+    String,
+    Custom(String),
+}
+
+impl From<&str> for ParamType {
+    fn from(s: &str) -> Self {
+        match s {
+            "any" => Self::Any,
+            "number" => Self::Number,
+            "string" => Self::String,
+            _ => Self::Custom(s.to_string()),
+        }
+    }
 }
 
 impl From<Option<&str>> for ParamType {
     fn from(s: Option<&str>) -> Self {
         if let Some(s) = s {
-            match s {
-                "number" => Self::Number,
-                _ => Self::Any,
-            }
+            s.into()
         }
         else {
             Self::Any
@@ -31,7 +41,7 @@ impl From<Option<&str>> for ParamType {
 #[derive(Debug)]
 pub struct Param {
     pub name: String,
-    pub kind: ParamType,
+    pub kinds: Vec<ParamType>,
 }
 
 #[derive(Debug)]
@@ -63,6 +73,11 @@ pub enum Statement {
         identifier: Vec<String>,
         params: Vec<Arc<Value>>,
     },
-    Class,
-    Interface,
+    Class{
+        name: String,
+    },
+    Interface{
+        name: String,
+    },
+    Type(Type),
 }
