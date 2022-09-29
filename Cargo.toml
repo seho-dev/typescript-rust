@@ -21,9 +21,9 @@ default = ["trace"]
 trace = []
 
 [dependencies]
-log = {version = "*", features = ["std"]}
-pest = "*"
-pest_derive = "*"
+log = {version = "0.4", features = ["std"]}
+pest = "1"
+pest_derive = "1"
 llvm-sys = "140"
-sha2 = "*"
-hex = "*"
+sha2 = "0.10"
+hex = "0.4"
