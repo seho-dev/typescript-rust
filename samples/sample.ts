@@ -20,7 +20,13 @@ else {
 
 interface TheInterface {}
 
-class TheClass implements TheInterface {}
+class TheClass implements TheInterface {
+    help: boolean = false
+
+    needHelp(nice: boolean = true) {
+        // return this.help
+    }
+}
 
 type MyType = {
     must: string

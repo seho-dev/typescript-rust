@@ -1,9 +1,10 @@
-use super::statement::ParamType;
+use super::statement::Param;
+
 
 
 #[derive(Debug)]
 pub struct TypeBlock {
-    attributes: Vec<ParamType>,
+    pub attributes: Vec<Param>,
 }
 
 #[derive(Debug)]
