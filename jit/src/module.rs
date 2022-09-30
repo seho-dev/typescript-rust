@@ -3,17 +3,19 @@ use std::{
     ffi::{c_void, CStr, CString},
     fs::File,
     io::Write,
-    sync::Arc, time::SystemTime,
+    sync::Arc,
+    time::SystemTime,
 };
 
 use llvm_sys::{
     core::{
         LLVMAddFunction, LLVMAddGlobal, LLVMAppendBasicBlockInContext, LLVMBuildCall2,
-        LLVMBuildGlobalStringPtr, LLVMBuildRetVoid, LLVMConstReal, LLVMContextCreate,
-        LLVMContextDispose, LLVMCreateBuilderInContext, LLVMDisposeBuilder,
-        LLVMDoubleTypeInContext, LLVMDumpModule, LLVMFloatType, LLVMFloatTypeInContext,
-        LLVMFunctionType, LLVMInt64TypeInContext, LLVMModuleCreateWithNameInContext,
-        LLVMPointerType, LLVMPositionBuilderAtEnd, LLVMPrintModuleToString, LLVMVoidTypeInContext, LLVMInt8TypeInContext, LLVMBuildGlobalString, LLVMBuildFAdd, LLVMBuildFSub,
+        LLVMBuildFAdd, LLVMBuildFSub, LLVMBuildGlobalString, LLVMBuildGlobalStringPtr,
+        LLVMBuildRetVoid, LLVMConstReal, LLVMContextCreate, LLVMContextDispose,
+        LLVMCreateBuilderInContext, LLVMDisposeBuilder, LLVMDoubleTypeInContext, LLVMDumpModule,
+        LLVMFloatType, LLVMFloatTypeInContext, LLVMFunctionType, LLVMInt64TypeInContext,
+        LLVMInt8TypeInContext, LLVMModuleCreateWithNameInContext, LLVMPointerType,
+        LLVMPositionBuilderAtEnd, LLVMPrintModuleToString, LLVMVoidTypeInContext,
     },
     execution_engine::{
         LLVMAddGlobalMapping, LLVMCreateExecutionEngineForModule, LLVMDisposeExecutionEngine,
@@ -40,6 +42,7 @@ pub struct Module {
     module: LLVMModuleRef,
     f64t: LLVMTypeRef,
     p64t: LLVMTypeRef,
+    string_cache: HashMap<String, LLVMValueRef>,
     ee: *mut LLVMOpaqueExecutionEngine,
     extern_functions: HashMap<String, ExternFunction>,
     pub namespace: Arc<Context>,
@@ -47,7 +50,9 @@ pub struct Module {
 }
 
 extern "C" fn print(val: *const Value) {
-    unsafe { println!("> {:?}", *val); }
+    unsafe {
+        println!("> {:?}", *val);
+    }
 }
 
 impl Module {
@@ -64,6 +69,7 @@ impl Module {
             module: 0 as _,
             f64t: 0 as _,
             p64t: 0 as _,
+            string_cache: HashMap::new(),
             ee: 0 as _,
             extern_functions: HashMap::new(),
             namespace: Context::new(),
@@ -149,6 +155,7 @@ impl Module {
             LLVMBuildRetVoid(module.builder);
 
             LLVMDisposeBuilder(module.builder);
+            module.string_cache.clear();
 
             if let Some(ir) = save_ir {
                 let data = LLVMPrintModuleToString(module.module);
@@ -261,7 +268,7 @@ impl Module {
         }
     }
 
-    fn build_string(&self, s: &str) -> LLVMValueRef {
+    fn build_string(&mut self, s: &str) -> LLVMValueRef {
         log::debug!(target: "typescript.build", "build_string");
 
         unsafe {
@@ -270,12 +277,20 @@ impl Module {
             //     CString::new(s).unwrap().as_ptr(),
             //     b"__str\0".as_ptr() as *const _,
             // );
-            let cs = CString::new(s).unwrap();
-            let cstr = LLVMBuildGlobalString(
-                self.builder,
-                cs.as_ptr(),
-                b"__str\0".as_ptr() as *const _,
-            );
+            let cstr = if let Some(cstr) = self.string_cache.get(s) {
+                *cstr
+            } else {
+                let cs = CString::new(s).unwrap();
+                let cstr = LLVMBuildGlobalString(
+                    self.builder,
+                    cs.as_ptr(),
+                    b"__str\0".as_ptr() as *const _,
+                );
+
+                self.string_cache.insert(s.to_string(), cstr);
+
+                cstr
+            };
 
             let args = vec![cstr];
             let string_from = self.extern_functions.get("__string_from").unwrap();
@@ -290,31 +305,31 @@ impl Module {
         }
     }
 
-    fn build_op(&self, op: &ast::operation::Operation, left: LLVMValueRef, right: LLVMValueRef) -> LLVMValueRef {
+    fn build_op(
+        &self,
+        op: &ast::operation::Operation,
+        left: LLVMValueRef,
+        right: LLVMValueRef,
+    ) -> LLVMValueRef {
         unsafe {
             match op {
                 ast::operation::Operation::Add => {
-                    LLVMBuildFAdd(
-                        self.builder, 
-                        left, 
-                        right, 
-                        b"__add\0".as_ptr() as _
-                    )
+                    LLVMBuildFAdd(self.builder, left, right, b"__add\0".as_ptr() as _)
                 }
                 ast::operation::Operation::Sub => {
-                    LLVMBuildFSub(
-                        self.builder, 
-                        left, 
-                        right, 
-                        b"__sub\0".as_ptr() as _
-                    )
+                    LLVMBuildFSub(self.builder, left, right, b"__sub\0".as_ptr() as _)
                 }
-                _ => { 0 as _ }
+                _ => 0 as _,
             }
         }
     }
 
-    fn build_generic_op(&self, op: &ast::operation::Operation, left_ref: LLVMValueRef, right_ref: LLVMValueRef) -> LLVMValueRef {
+    fn build_generic_op(
+        &self,
+        op: &ast::operation::Operation,
+        left_ref: LLVMValueRef,
+        right_ref: LLVMValueRef,
+    ) -> LLVMValueRef {
         use ast::operation::Operation;
 
         log::debug!(target: "typescript.build", "generic_op");
@@ -334,7 +349,7 @@ impl Module {
             Operation::And => self.extern_functions.get("__add").unwrap(),
             Operation::Or => self.extern_functions.get("__add").unwrap(),
         };
-    
+
         let args = vec![left_ref, right_ref];
         unsafe {
             LLVMBuildCall2(
@@ -348,7 +363,7 @@ impl Module {
         }
     }
 
-    fn build_value(&self, value: Arc<ast::value::Value>) -> LLVMValueRef {
+    fn build_value(&mut self, value: Arc<ast::value::Value>) -> LLVMValueRef {
         unsafe {
             match &*value {
                 ast::value::Value::Number(n) => {
@@ -380,7 +395,7 @@ impl Module {
         }
     }
 
-    fn consume_statement(&self, statement: ast::statement::Statement) -> LLVMValueRef {
+    fn consume_statement(&mut self, statement: ast::statement::Statement) -> LLVMValueRef {
         match statement {
             ast::statement::Statement::Const { name, value } => {
                 let name_ref = self.build_string(&name);
@@ -394,13 +409,14 @@ impl Module {
             }
             ast::statement::Statement::Call { identifier, params } => {
                 if identifier.len() == 1 {
-                    if let Some(n) = self.extern_functions.get(&identifier[0]) {
+                    if self.extern_functions.contains_key(&identifier[0]) {
                         let mut args: Vec<LLVMValueRef> = Vec::new();
 
                         for p in params {
                             args.push(self.build_value(p));
                         }
 
+                        let n = self.extern_functions.get(&identifier[0]).unwrap();
                         unsafe {
                             return LLVMBuildCall2(
                                 self.builder,
@@ -408,21 +424,23 @@ impl Module {
                                 n.func,
                                 args.as_ptr() as _,
                                 args.len() as _,
-                                b"__call\0".as_ptr() as _
+                                b"__call\0".as_ptr() as _,
                             );
                         }
                     }
                 }
                 0 as _
             }
-            ast::statement::Statement::Function { name, params, block } => {
-                0 as _
-            }
+            ast::statement::Statement::Function {
+                name,
+                params,
+                block,
+            } => 0 as _,
             _ => 0 as _,
         }
     }
 
-    fn consume(&self, module: ast::Module) {
+    fn consume(&mut self, module: ast::Module) {
         for stmnt in module.statements {
             self.consume_statement(stmnt);
         }
