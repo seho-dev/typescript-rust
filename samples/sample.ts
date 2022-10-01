@@ -18,7 +18,9 @@ else {
     bu = 1
 }
 
-interface TheInterface {}
+interface TheInterface {
+    needHelp(nice: boolean)
+}
 
 class TheClass implements TheInterface {
     help: boolean = false

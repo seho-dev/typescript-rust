@@ -3,7 +3,7 @@ use std::{error::Error, path::Path, sync::Arc};
 use crate::ast::{
     module::{ImportAlias, Module, Import},
     statement::{ElseIf, Param, Statement, ParamType},
-    value::Value, tstype::{Type, TypeBlock}, class::{Class, ClassMethod},
+    value::Value, tstype::{Type, TypeBlock}, class::{Class, ClassMethod}, interface::{Interface, InterfaceMethod},
 };
 use pest::{iterators::Pair, Parser};
 use pest_derive::Parser;
@@ -233,7 +233,51 @@ fn parse_interface(stmnt: Pair<Rule>) -> Statement {
     let mut inner = stmnt.into_inner();
 
     let name = inner.next().unwrap().as_str();
-    Statement::Interface { name: name.to_string() }
+    let mut extends = None;
+    let mut attributes = Vec::new();
+    let mut methods = Vec::new();
+
+    while let Some(block) = inner.next() {
+        match block.as_rule() {
+            Rule::InterfaceExtends => {
+                let inner = block.into_inner().next().unwrap();
+                extends = Some(inner.as_str().into());
+            }
+            Rule::InterfaceBody => {
+                for part in block.into_inner() {
+                    match part.as_rule() {
+                        Rule::InterfaceMethod => {
+                            let mut inner = part.into_inner();
+                            let name = inner.next().unwrap().as_str();
+                            let mut params = Vec::new();
+
+                            for p in inner.next().unwrap().into_inner() {
+                                params.push(parse_param(p));
+                            }
+
+                            methods.push(InterfaceMethod {
+                                name: name.into(),
+                                params,
+                            })
+                        }
+                        Rule::InterfaceAttribute => {
+                            attributes.push(parse_param(part.into_inner().next().unwrap()));
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    let interface = Interface {
+        name: name.to_string(),
+        extends,
+        attributes,
+        methods,
+    };
+    Statement::Interface(interface)
 }
 
 fn parse_class(stmnt: Pair<Rule>) -> Statement {

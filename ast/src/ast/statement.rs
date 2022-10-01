@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use super::{value::Value, tstype::Type, class::Class};
+use super::{value::Value, tstype::Type, class::Class, interface::Interface};
 
 #[derive(Debug)]
 pub struct ElseIf {
@@ -14,6 +14,7 @@ pub enum ParamType {
     Number,
     String,
     Boolean,
+    Null,
     Custom(String),
 }
 
@@ -24,6 +25,7 @@ impl From<&str> for ParamType {
             "number" => Self::Number,
             "string" => Self::String,
             "boolean" => Self::Boolean,
+            "null" => Self::Null,
             _ => Self::Custom(s.to_string()),
         }
     }
@@ -77,8 +79,6 @@ pub enum Statement {
         params: Vec<Arc<Value>>,
     },
     Class(Class),
-    Interface{
-        name: String,
-    },
+    Interface(Interface),
     Type(Type),
 }

@@ -148,6 +148,14 @@ pub extern "C" fn string_new() -> *const Value {
     Arc::into_raw(Arc::new(Value::Str("".to_owned())))
 }
 
+pub extern "C" fn string_copy(v: *const Value) -> *const Value {
+    unsafe {
+        #[cfg(feature = "trace")]
+        log::trace!(target: "typescript.callback", "!! copy string {:?} !!", *v);
+        Arc::into_raw( Arc::from_raw(v).clone() )
+    }
+}
+
 pub unsafe extern "C" fn string_from(bytes: *mut i8) -> *const Value {
     #[cfg(feature = "trace")]
     log::trace!(target: "typescript.callback", "!! string from !!");

@@ -102,6 +102,7 @@ impl Module {
             module.add_fn("__array_new", callbacks::array_new as *mut _, 0);
             module.add_fn("__array_push", callbacks::array_push as *mut _, 2);
             module.add_fn("__string_new", callbacks::string_new as *mut _, 0);
+            module.add_fn("__string_copy", callbacks::string_copy as *mut _, 1);
             module.add_fn("__add", callbacks::add as *mut _, 2);
             module.add_fn("__sub", callbacks::sub as *mut _, 2);
             module.add_fn("__mul", callbacks::mul as *mut _, 2);
@@ -140,16 +141,6 @@ impl Module {
 
             LLVMPositionBuilderAtEnd(module.builder, bb);
 
-            // let ex = module.extern_functions.get("print").unwrap();
-            // let args: Vec<LLVMValueRef> = Vec::new();
-            // LLVMBuildCall2(
-            //     builder,
-            //     ex.ft,
-            //     ex.func,
-            //     args.as_ptr() as *mut LLVMValueRef,
-            //     args.len() as u32,
-            //     b"__print\0".as_ptr() as *const _,
-            // );
             module.consume(m);
 
             LLVMBuildRetVoid(module.builder);
@@ -200,7 +191,7 @@ impl Module {
                 )
             };
         }
-        log::debug!(target: "typescript.build", "build_access_array <<");
+        log::trace!(target: "typescript.build", "build_access_array <<");
 
         an_ref
     }

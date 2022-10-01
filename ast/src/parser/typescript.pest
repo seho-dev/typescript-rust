@@ -30,7 +30,11 @@ IdentifierList = { Identifier ~ ("," ~ Identifier)* }
 TypeIdentifier = { "boolean" | "null" | "any" | "number" | "string" | "void" | Identifier }
 TypeIdentifiers = { TypeIdentifier ~ ("|" ~ TypeIdentifier)* }
 
-Interface = { "interface" ~ Name ~ ("extends" ~ IdentifierList)? ~ "{" ~ "}" }
+InterfaceExtends = { "extends" ~ IdentifierList }
+InterfaceAttribute = { Param }
+InterfaceMethod = { Name ~ "(" ~ ParamList ~ ")" }
+InterfaceBody = { "{" ~ (InterfaceMethod | InterfaceAttribute)* ~ "}" }
+Interface = { "interface" ~ Name ~ InterfaceExtends? ~ InterfaceBody }
 
 ClassAttribute = { Param }
 MethodPrefix = { "static"? ~ "async"? }
