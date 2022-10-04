@@ -16,8 +16,8 @@ strip = true
 lto = true
 
 [features]
-default = ["trace"]
-# default = []
+# default = ["trace"]
+default = []
 trace = []
 
 [dependencies]

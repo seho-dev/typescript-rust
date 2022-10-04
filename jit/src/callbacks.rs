@@ -2,6 +2,9 @@ use std::{sync::Arc, ffi::CStr};
 
 use super::{value::Value, context::Context};
 
+pub unsafe extern "C" fn global_null() -> *const Value {
+    Arc::into_raw(Arc::new(Value::Null))
+}
 
 pub unsafe extern "C" fn global_get(ctx: *mut Context, name: *const Value) -> *const Value {
     #[cfg(feature = "trace")]

@@ -15,13 +15,13 @@ use llvm_sys::{
         LLVMCreateBuilderInContext, LLVMDisposeBuilder, LLVMDoubleTypeInContext, LLVMDumpModule,
         LLVMFloatType, LLVMFloatTypeInContext, LLVMFunctionType, LLVMInt64TypeInContext,
         LLVMInt8TypeInContext, LLVMModuleCreateWithNameInContext, LLVMPointerType,
-        LLVMPositionBuilderAtEnd, LLVMPrintModuleToString, LLVMVoidTypeInContext,
+        LLVMPositionBuilderAtEnd, LLVMPrintModuleToString, LLVMVoidTypeInContext, LLVMBuildRet,
     },
     execution_engine::{
         LLVMAddGlobalMapping, LLVMCreateExecutionEngineForModule, LLVMDisposeExecutionEngine,
         LLVMGetFunctionAddress, LLVMOpaqueExecutionEngine,
     },
-    prelude::{LLVMBuilderRef, LLVMContextRef, LLVMModuleRef, LLVMTypeRef, LLVMValueRef},
+    prelude::{LLVMBuilderRef, LLVMContextRef, LLVMModuleRef, LLVMTypeRef, LLVMValueRef, LLVMBasicBlockRef},
 };
 
 use typescript_ast::ast;
@@ -35,16 +35,24 @@ pub struct ExternFunction {
     name: CString,
 }
 
+pub struct InternFunction {
+    func: LLVMValueRef,
+    ft: LLVMTypeRef,
+    name: CString,
+}
+
 pub struct Module {
     id: Vec<u8>,
     builder: LLVMBuilderRef,
     context: LLVMContextRef,
     module: LLVMModuleRef,
+    current_block: LLVMBasicBlockRef,
     f64t: LLVMTypeRef,
     p64t: LLVMTypeRef,
     string_cache: HashMap<String, LLVMValueRef>,
     ee: *mut LLVMOpaqueExecutionEngine,
     extern_functions: HashMap<String, ExternFunction>,
+    function_cache: HashMap<String, InternFunction>,
     pub namespace: Arc<Context>,
     namespace_ptr: LLVMValueRef,
 }
@@ -67,11 +75,13 @@ impl Module {
             builder: 0 as _,
             context: 0 as _,
             module: 0 as _,
+            current_block: 0 as _,
             f64t: 0 as _,
             p64t: 0 as _,
             string_cache: HashMap::new(),
             ee: 0 as _,
             extern_functions: HashMap::new(),
+            function_cache: HashMap::new(),
             namespace: Context::new(),
             namespace_ptr: 0 as _,
         };
@@ -95,6 +105,7 @@ impl Module {
                 b"__context\0".as_ptr() as *const _,
             );
 
+            module.add_fn("__global_null", callbacks::global_null as *mut _, 0);
             module.add_fn("__global_get", callbacks::global_get as *mut _, 2);
             // ctx.add_fn("__global_get_func", global_get_func as *mut _, 2);
             module.add_fn("__global_set", callbacks::global_set as *mut _, 3);
@@ -140,6 +151,7 @@ impl Module {
             );
 
             LLVMPositionBuilderAtEnd(module.builder, bb);
+            module.current_block = bb;
 
             module.consume(m);
 
@@ -162,7 +174,6 @@ impl Module {
     }
 
     fn build_access_array(&self, parts: &Vec<LLVMValueRef>) -> LLVMValueRef {
-        log::trace!(target: "typescript.build", "build_access_array >>");
         let an_ref = unsafe {
             let an = self.extern_functions.get("__array_new").unwrap();
 
@@ -191,13 +202,11 @@ impl Module {
                 )
             };
         }
-        log::trace!(target: "typescript.build", "build_access_array <<");
 
         an_ref
     }
 
     fn build_global_get(&self, name: LLVMValueRef) -> LLVMValueRef {
-        log::trace!(target: "typescript.build", "build_global_get >>");
         let get_global = self.extern_functions.get("__global_get").unwrap();
         let value_delete = self.extern_functions.get("__value_delete").unwrap();
         let args = vec![self.namespace_ptr, name];
@@ -221,15 +230,12 @@ impl Module {
                 delete_args.len() as u32,
                 b"__value_delete\0".as_ptr() as *const _,
             );
-            log::trace!(target: "typescript.build", "build_global_get <<");
 
             func
         }
     }
 
     fn build_global_set(&self, name: LLVMValueRef, value: LLVMValueRef) -> LLVMValueRef {
-        log::trace!(target: "typescript.build", "build_global_set >>");
-
         let global_set = self.extern_functions.get("__global_set").unwrap();
         let value_delete = self.extern_functions.get("__value_delete").unwrap();
         let args = vec![self.namespace_ptr, name, value];
@@ -253,15 +259,12 @@ impl Module {
                 delete_args.len() as u32,
                 b"__value_delete\0".as_ptr() as *const _,
             );
-            log::trace!(target: "typescript.build", "build_global_set <<");
 
             ret
         }
     }
 
     fn build_string(&mut self, s: &str) -> LLVMValueRef {
-        log::debug!(target: "typescript.build", "build_string");
-
         unsafe {
             // let cstr = LLVMBuildGlobalStringPtr(
             //     self.builder,
@@ -323,8 +326,6 @@ impl Module {
     ) -> LLVMValueRef {
         use ast::operation::Operation;
 
-        log::debug!(target: "typescript.build", "generic_op");
-
         let call = match op {
             Operation::Add => self.extern_functions.get("__add").unwrap(),
             Operation::Sub => self.extern_functions.get("__sub").unwrap(),
@@ -381,8 +382,121 @@ impl Module {
                     let access = self.build_access_array(&parts);
                     self.build_global_get(access)
                 }
-                _ => 0 as _,
+                ast::value::Value::Call { identifier, args } => {
+                    log::trace!("build call: {:?} {:?}", identifier, args);
+
+                    if identifier.len() == 1 {
+                        if self.extern_functions.contains_key(&identifier[0]) {
+                            let mut params: Vec<LLVMValueRef> = Vec::new();
+
+                            for p in args {
+                                params.push(self.build_value(p.clone()));
+                            }
+
+                            let n = self.extern_functions.get(&identifier[0]).unwrap();
+                            unsafe {
+                                return LLVMBuildCall2(
+                                    self.builder,
+                                    n.ft,
+                                    n.func,
+                                    params.as_ptr() as _,
+                                    params.len() as _,
+                                    b"__call_extern\0".as_ptr() as _,
+                                );
+                            }
+                        }
+                        else if self.function_cache.contains_key(&identifier[0]) {
+                            let mut params: Vec<LLVMValueRef> = Vec::new();
+
+                            for p in args {
+                                params.push(self.build_value(p.clone()));
+                            }
+
+                            let n = self.function_cache.get(&identifier[0]).unwrap();
+                            unsafe {
+                                return LLVMBuildCall2(
+                                    self.builder,
+                                    n.ft,
+                                    n.func,
+                                    params.as_ptr() as _,
+                                    params.len() as _,
+                                    b"__call_intern\0".as_ptr() as _,
+                                );
+                            }
+                        }
+                    }
+                    0 as _
+                }
+                ast::value::Value::Undefined => {
+                    let null = self.extern_functions.get("__global_null").unwrap();
+                    let args: Vec<LLVMValueRef> = Vec::new();
+                    LLVMBuildCall2(
+                        self.builder,
+                        null.ft,
+                        null.func,
+                        args.as_ptr() as *mut LLVMValueRef,
+                        args.len() as u32,
+                        b"__null\0".as_ptr() as *const _,
+                    )
+                }
+                _ => {
+                    log::warn!("could not handle: {:?}", value);
+                    0 as _
+                }
             }
+        }
+    }
+
+    fn build_function(&mut self, stmnt: ast::function::Function) -> LLVMValueRef {
+        unsafe {
+            let cname = CString::new(stmnt.name.clone().unwrap_or("generic".into())).unwrap();
+
+            let func_t = LLVMFunctionType(
+                LLVMVoidTypeInContext(self.context),
+                std::ptr::null_mut(),
+                0,
+                0,
+            );
+            let func = LLVMAddFunction(
+                self.module,
+                cname.as_ptr(),
+                func_t,
+            );
+
+            if let Some(name) = stmnt.name.as_ref() {
+                self.function_cache.insert(name.clone(), InternFunction { 
+                    func,
+                    ft: func_t,
+                    name: cname.clone()
+                });
+            }
+
+            let bb = LLVMAppendBasicBlockInContext(
+                self.context,
+                func,
+                cname.as_ptr(),
+            );
+
+            let old_block = self.current_block;
+            self.current_block = bb;
+            LLVMPositionBuilderAtEnd(self.builder, self.current_block);
+
+            let mut last = 0 as _;
+            for stmnt in stmnt.block {
+                last = self.consume_statement(stmnt);
+            }
+
+            if last == 0 as _ {
+                LLVMBuildRetVoid(self.builder);
+            }
+            else {
+                LLVMBuildRet(self.builder, last);
+            }
+
+            self.current_block = old_block;
+            LLVMPositionBuilderAtEnd(self.builder, self.current_block);
+
+            func
         }
     }
 
@@ -398,31 +512,12 @@ impl Module {
                 let value_ref = self.build_value(value);
                 self.build_global_set(name_ref, value_ref)
             }
-            ast::statement::Statement::Call { identifier, params } => {
-                if identifier.len() == 1 {
-                    if self.extern_functions.contains_key(&identifier[0]) {
-                        let mut args: Vec<LLVMValueRef> = Vec::new();
-
-                        for p in params {
-                            args.push(self.build_value(p));
-                        }
-
-                        let n = self.extern_functions.get(&identifier[0]).unwrap();
-                        unsafe {
-                            return LLVMBuildCall2(
-                                self.builder,
-                                n.ft,
-                                n.func,
-                                args.as_ptr() as _,
-                                args.len() as _,
-                                b"__call\0".as_ptr() as _,
-                            );
-                        }
-                    }
-                }
-                0 as _
+            ast::statement::Statement::Call(call) => {
+                self.build_value(call)
             }
-            ast::statement::Statement::Function(func) => 0 as _,
+            ast::statement::Statement::Function(func) => {
+                self.build_function(func)
+            },
             _ => 0 as _,
         }
     }
@@ -463,6 +558,7 @@ impl Module {
             #[cfg(feature = "trace")]
             log::debug!(target: "typescript.jit", "add gloabl mapping");
 
+            let start = SystemTime::now();
             let ns_ptr = Arc::into_raw(self.namespace.clone());
             LLVMAddGlobalMapping(self.ee, self.namespace_ptr, ns_ptr as *mut _);
 
@@ -474,6 +570,8 @@ impl Module {
                 //     Rc::new(Value::Lambda(func as usize))
                 // );
             }
+            let dur = start.elapsed().unwrap();
+            log::info!(target: "typescript.module", "create mapping: {}.{:06}", dur.as_secs(), dur.subsec_micros());
 
             let addr = LLVMGetFunctionAddress(self.ee, b"__main__\0".as_ptr() as *const _);
 

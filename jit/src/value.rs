@@ -1,5 +1,4 @@
-use std::{sync::Arc, collections::HashMap};
-
+use std::{collections::HashMap, sync::Arc};
 
 #[derive(Debug)]
 pub enum Value {
@@ -7,7 +6,7 @@ pub enum Value {
     Str(String),
     Array(Vec<Arc<Value>>),
     Object(HashMap<String, Arc<Value>>),
-    Function,
+    Function(u64),
     Null,
 }
 

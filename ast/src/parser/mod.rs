@@ -6,8 +6,9 @@ use crate::ast::{
     interface::Interface,
     module::{Import, ImportAlias, Module},
     statement::{ElseIf, Statement},
+    tstype::TsType,
     typedefinition::{TypeBlock, TypeDefinition},
-    value::Value, tstype::TsType,
+    value::Value,
 };
 use pest::{iterators::Pair, Parser};
 use pest_derive::Parser;
@@ -34,7 +35,13 @@ fn parse_term(term: Pair<Rule>) -> Value {
 
             Value::Identifier(names)
         }
-        Rule::Call => Value::Undefined,
+        Rule::String => {
+            let data = inner.as_str();
+            Value::String(data[1..data.len() - 1].into())
+        }
+        Rule::Call => {
+            parse_call(inner)
+        }
         _ => Value::Undefined,
     }
 }
@@ -136,8 +143,27 @@ fn parse_function(func: Pair<Rule>) -> Function {
         returns,
         block: block_statements,
     };
-    println!("{:?}", f);
     f
+}
+
+fn parse_call(stmnt: Pair<Rule>) -> Value {
+    let mut inner = stmnt.into_inner();
+    let identifier: Vec<String> = inner
+        .next()
+        .unwrap()
+        .as_str()
+        .split(".")
+        .map(|n| n.to_string())
+        .collect();
+
+    let args = inner
+        .next()
+        .unwrap()
+        .into_inner()
+        .map(|n| parse_value(n))
+        .collect();
+
+    Value::Call { identifier, args }
 }
 
 fn parse_statement(stmnt: Pair<Rule>) -> Option<Statement> {
@@ -230,25 +256,7 @@ fn parse_statement(stmnt: Pair<Rule>) -> Option<Statement> {
             let func = parse_function(stmnt);
             Some(Statement::Function(func))
         }
-        Rule::Call => {
-            let mut inner = stmnt.into_inner();
-            let identifier: Vec<String> = inner
-                .next()
-                .unwrap()
-                .as_str()
-                .split(".")
-                .map(|n| n.to_string())
-                .collect();
-
-            let params = inner
-                .next()
-                .unwrap()
-                .into_inner()
-                .map(|n| parse_value(n))
-                .collect();
-
-            Some(Statement::Call { identifier, params })
-        }
+        Rule::Call => Some(Statement::Call(Arc::new(parse_call(stmnt)))),
         _ => None,
     }
 }

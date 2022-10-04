@@ -33,10 +33,7 @@ pub enum Statement {
     },
     Return(Arc<Value>),
     Function(Function),
-    Call {
-        identifier: Vec<String>,
-        params: Vec<Arc<Value>>,
-    },
+    Call(Arc<Value>),
     Class(Class),
     Interface(Interface),
     Type(TypeDefinition),
