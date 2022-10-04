@@ -422,11 +422,7 @@ impl Module {
                 }
                 0 as _
             }
-            ast::statement::Statement::Function {
-                name,
-                params,
-                block,
-            } => 0 as _,
+            ast::statement::Statement::Function(func) => 0 as _,
             _ => 0 as _,
         }
     }

@@ -1,9 +1,13 @@
 use std::{error::Error, path::Path, sync::Arc};
 
 use crate::ast::{
-    module::{ImportAlias, Module, Import},
-    statement::{ElseIf, Param, Statement, ParamType},
-    value::Value, tstype::{Type, TypeBlock}, class::{Class, ClassMethod}, interface::{Interface, InterfaceMethod},
+    class::Class,
+    function::{Function, Param},
+    interface::Interface,
+    module::{Import, ImportAlias, Module},
+    statement::{ElseIf, Statement},
+    typedefinition::{TypeBlock, TypeDefinition},
+    value::Value, tstype::TsType,
 };
 use pest::{iterators::Pair, Parser};
 use pest_derive::Parser;
@@ -23,20 +27,14 @@ fn parse_term(term: Pair<Rule>) -> Value {
                 Value::Undefined
             }
         }
-        Rule::False => {
-            Value::Boolean(false)
-        }
-        Rule::True => {
-            Value::Boolean(true)
-        }
+        Rule::False => Value::Boolean(false),
+        Rule::True => Value::Boolean(true),
         Rule::Identifier => {
             let names: Vec<String> = inner.as_str().split(".").map(|n| n.to_string()).collect();
 
             Value::Identifier(names)
         }
-        Rule::Call => {
-            Value::Undefined
-        }
+        Rule::Call => Value::Undefined,
         _ => Value::Undefined,
     }
 }
@@ -58,7 +56,7 @@ fn parse_value(expr: Pair<Rule>) -> Arc<Value> {
     }
 }
 
-fn parse_param_kind(kind: Pair<Rule>) -> Vec<ParamType> {
+fn parse_param_kind(kind: Pair<Rule>) -> Vec<TsType> {
     let mut kinds = Vec::new();
 
     for k in kind.into_inner() {
@@ -91,6 +89,55 @@ fn parse_param(param: Pair<Rule>) -> Param {
         kinds,
         default,
     }
+}
+
+fn parse_function(func: Pair<Rule>) -> Function {
+    let mut name = None;
+    let mut params = Vec::new();
+    let mut returns = Vec::new();
+    let mut block_statements = Vec::new();
+
+    for inner in func.into_inner() {
+        match inner.as_rule() {
+            Rule::Name => {
+                name = Some(inner.as_str().into());
+            }
+            Rule::FunctionDefinition => {
+                for p in inner.into_inner() {
+                    match p.as_rule() {
+                        Rule::ParamList => {
+                            for p in p.into_inner() {
+                                params.push(parse_param(p));
+                            }
+                        }
+                        Rule::ReturnType => {
+                            for r in p.into_inner() {
+                                returns.push(r.as_str().into());
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            Rule::Block => {
+                for stmnt in inner.into_inner() {
+                    if let Some(s) = parse_statement(stmnt) {
+                        block_statements.push(s);
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    let f = Function {
+        name,
+        params,
+        returns,
+        block: block_statements,
+    };
+    println!("{:?}", f);
+    f
 }
 
 fn parse_statement(stmnt: Pair<Rule>) -> Option<Statement> {
@@ -180,28 +227,8 @@ fn parse_statement(stmnt: Pair<Rule>) -> Option<Statement> {
             })
         }
         Rule::Function => {
-            let mut inner = stmnt.into_inner();
-            let name = inner.next().unwrap();
-            let param_list = inner.next().unwrap();
-            let block = inner.next().unwrap();
-            let mut params = Vec::new();
-
-            for p in param_list.into_inner() {
-                params.push(parse_param(p));
-            }
-
-            let mut block_statements = Vec::new();
-            for stmnt in block.into_inner() {
-                if let Some(s) = parse_statement(stmnt) {
-                    block_statements.push(s);
-                }
-            }
-
-            Some(Statement::Function {
-                name: name.as_str().to_string(),
-                params,
-                block: block_statements,
-            })
+            let func = parse_function(stmnt);
+            Some(Statement::Function(func))
         }
         Rule::Call => {
             let mut inner = stmnt.into_inner();
@@ -220,10 +247,7 @@ fn parse_statement(stmnt: Pair<Rule>) -> Option<Statement> {
                 .map(|n| parse_value(n))
                 .collect();
 
-            Some(Statement::Call { 
-                identifier,
-                params,
-            })
+            Some(Statement::Call { identifier, params })
         }
         _ => None,
     }
@@ -247,18 +271,7 @@ fn parse_interface(stmnt: Pair<Rule>) -> Statement {
                 for part in block.into_inner() {
                     match part.as_rule() {
                         Rule::InterfaceMethod => {
-                            let mut inner = part.into_inner();
-                            let name = inner.next().unwrap().as_str();
-                            let mut params = Vec::new();
-
-                            for p in inner.next().unwrap().into_inner() {
-                                params.push(parse_param(p));
-                            }
-
-                            methods.push(InterfaceMethod {
-                                name: name.into(),
-                                params,
-                            })
+                            methods.push(parse_function(part));
                         }
                         Rule::InterfaceAttribute => {
                             attributes.push(parse_param(part.into_inner().next().unwrap()));
@@ -304,18 +317,7 @@ fn parse_class(stmnt: Pair<Rule>) -> Statement {
                 for part in block.into_inner() {
                     match part.as_rule() {
                         Rule::Method => {
-                            let mut inner = part.into_inner();
-                            let name = inner.next().unwrap().as_str();
-                            let mut params = Vec::new();
-
-                            for p in inner.next().unwrap().into_inner() {
-                                params.push(parse_param(p));
-                            }
-
-                            methods.push(ClassMethod {
-                                name: name.into(),
-                                params,
-                            })
+                            methods.push(parse_function(part));
                         }
                         Rule::ClassAttribute => {
                             attributes.push(parse_param(part.into_inner().next().unwrap()));
@@ -355,29 +357,27 @@ fn parse_type(stmnt: Pair<Rule>) -> Statement {
 
                     let name = inner.next().unwrap().as_str();
                     let kind = inner.next().unwrap();
-                    attributes.push(Param { 
+                    attributes.push(Param {
                         name: name.to_string(),
-                        kinds: parse_param_kind(kind), 
+                        kinds: parse_param_kind(kind),
                         default: None,
                     });
                 }
 
-                blocks.push(TypeBlock {
-                    attributes,
-                })
+                blocks.push(TypeBlock { attributes })
             }
             Rule::Name => {
                 aggregates.push(def.as_str().to_string());
             }
-            _ => {},
+            _ => {}
         }
     }
 
-    Statement::Type(Type { 
+    Statement::Type(TypeDefinition {
         name: name.to_string(),
         blocks,
         aggregates,
-     })
+    })
 }
 
 pub fn file<T: AsRef<Path>>(filename: T) -> Result<Module, Box<dyn Error>> {

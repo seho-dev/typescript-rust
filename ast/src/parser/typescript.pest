@@ -7,7 +7,7 @@ False = { "false" }
 Null = { "null" }
 Undefined = { "undefined" }
 Operand = @{ "+" | "-" | "*" | "/" | "%" | "<" | ">" | "<=" | ">=" | "&&" | "||" | "==" | "!="}
-Term = { Number | True | False | String | Call | Identifier | "(" ~ Expression ~ ")" }
+Term = { Number | True | False | String | Closur | Call | Identifier | "(" ~ Expression ~ ")" }
 Expression = {
     Term ~ Operand ~ Term
     | Term
@@ -18,6 +18,7 @@ Call = { Identifier ~ "(" ~ CallList ~ ")" ~ ";"? }
 Const = { "const" ~ Name ~ "=" ~ Expression ~ ";"? }
 Let = { "let" ~ Name ~ "=" ~ Expression ~ ";"? }
 Assign = { Identifier ~ "=" ~ Expression ~ ";"? }
+Return = { "return" ~ Expression }
 
 Block = { "{" ~ Statement* ~ "}" }
 If = { "if" ~ "(" ~ Expression ~ ")" ~ Block ~ ElseIf* ~ Else? }
@@ -32,13 +33,13 @@ TypeIdentifiers = { TypeIdentifier ~ ("|" ~ TypeIdentifier)* }
 
 InterfaceExtends = { "extends" ~ IdentifierList }
 InterfaceAttribute = { Param }
-InterfaceMethod = { Name ~ "(" ~ ParamList ~ ")" }
+InterfaceMethod = { Name ~ FunctionDefinition }
 InterfaceBody = { "{" ~ (InterfaceMethod | InterfaceAttribute)* ~ "}" }
 Interface = { "interface" ~ Name ~ InterfaceExtends? ~ InterfaceBody }
 
 ClassAttribute = { Param }
 MethodPrefix = { "static"? ~ "async"? }
-Method = { Name ~ "(" ~ ParamList ~ ")" ~ "{" ~ Statement* ~ "}" }
+Method = { Name ~ FunctionDefinition ~ Block }
 Extends = { "extends" ~ Identifier }
 Implements = { "implements" ~ IdentifierList }
 ClassBody = { "{" ~ (Method | ClassAttribute)* ~ "}" }
@@ -51,9 +52,13 @@ Type = { "type" ~ Name ~ "=" ~ TypeDefinition }
 
 Param = { Name ~ (":" ~ TypeIdentifiers)? ~ ("=" ~ Term)? }
 ParamList = { Param? ~ ("," ~ Param)* }
-Function = { "function" ~ Name ~ "(" ~ ParamList ~ ")" ~ Block }
+ReturnType = { ":" ~ TypeIdentifiers }
+FunctionDefinition = { "(" ~ ParamList ~ ")" ~ ReturnType? }
+Function = { "function" ~ Name ~ FunctionDefinition ~ Block }
 
-Statement = { Const | Let | Assign | If | Function | Call }
+Closur = { FunctionDefinition ~ "=>" ~ Block | Statement }
+
+Statement = { Const | Let | Assign | If | Function | Call | Return }
 Import = { "import" ~ String }
 ImportName = { Name ~ ("as" ~ Name)? }
 ImportNameList = { ImportName ~ ("," ~ ImportName)* }

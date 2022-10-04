@@ -30,14 +30,20 @@ class TheClass implements TheInterface {
     }
 }
 
+const dave = (): string => {
+    return "name"
+}
+
 type MyType = {
     must: string
 }
 
 type MyTypeToo = {can: boolean} | MyType
 
-function doStuff(one: number | string) {
+function doStuff(one: number | string): number {
     print("stuff")
+
+    return 1
 }
 
 doStuff(1)

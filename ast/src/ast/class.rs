@@ -1,11 +1,4 @@
-use super::statement::Param;
-
-
-#[derive(Debug)]
-pub struct ClassMethod {
-    pub name: String,
-    pub params: Vec<Param>,
-}
+use super::function::{Function, Param};
 
 #[derive(Debug)]
 pub struct Class {
@@ -13,5 +6,5 @@ pub struct Class {
     pub extends: Option<String>,
     pub implements: Vec<String>,
     pub attributes: Vec<Param>,
-    pub methods: Vec<ClassMethod>,
+    pub methods: Vec<Function>,
 }
