@@ -43,7 +43,8 @@ type MyTypeToo = {can: boolean} | MyType
 function doStuff(one: number | string): number {
     print("stuff")
 
-    return 1
+    return 5
 }
 
-doStuff(1)
+const result = doStuff(1)
+print(result)

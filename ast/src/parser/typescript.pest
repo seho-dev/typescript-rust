@@ -7,17 +7,17 @@ False = { "false" }
 Null = { "null" }
 Undefined = { "undefined" }
 Operand = @{ "+" | "-" | "*" | "/" | "%" | "<" | ">" | "<=" | ">=" | "&&" | "||" | "==" | "!="}
-Term = { Number | True | False | String | Closur | Call | Identifier | "(" ~ Expression ~ ")" }
+Term = { Number | True | False | String | Call | Closur | Identifier | "(" ~ Expression ~ ")" }
 Expression = {
     Term ~ Operand ~ Term
     | Term
 }
 
 CallList = { Expression ~ ("," ~ Expression)* }
-Call = { Identifier ~ "(" ~ CallList ~ ")" ~ ";"? }
-Const = { "const" ~ Name ~ "=" ~ Expression ~ ";"? }
-Let = { "let" ~ Name ~ "=" ~ Expression ~ ";"? }
-Assign = { Identifier ~ "=" ~ Expression ~ ";"? }
+Call = { Identifier ~ "(" ~ CallList ~ ")" }
+Const = { "const" ~ Name ~ "=" ~ Expression }
+Let = { "let" ~ Name ~ "=" ~ Expression }
+Assign = { Identifier ~ "=" ~ Expression }
 Return = { "return" ~ Expression }
 
 Block = { "{" ~ Statement* ~ "}" }
@@ -58,7 +58,7 @@ Function = { "function" ~ Name ~ FunctionDefinition ~ Block }
 
 Closur = { FunctionDefinition ~ "=>" ~ Block | Statement }
 
-Statement = { Const | Let | Assign | If | Function | Call | Return }
+Statement = { (Const | Let | Assign | If | Function | Call | Return) ~ ";"? }
 Import = { "import" ~ String }
 ImportName = { Name ~ ("as" ~ Name)? }
 ImportNameList = { ImportName ~ ("," ~ ImportName)* }

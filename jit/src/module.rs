@@ -11,17 +11,18 @@ use llvm_sys::{
     core::{
         LLVMAddFunction, LLVMAddGlobal, LLVMAppendBasicBlockInContext, LLVMBuildCall2,
         LLVMBuildFAdd, LLVMBuildFSub, LLVMBuildGlobalString, LLVMBuildGlobalStringPtr,
-        LLVMBuildRetVoid, LLVMConstReal, LLVMContextCreate, LLVMContextDispose,
-        LLVMCreateBuilderInContext, LLVMDisposeBuilder, LLVMDoubleTypeInContext, LLVMDumpModule,
-        LLVMFloatType, LLVMFloatTypeInContext, LLVMFunctionType, LLVMInt64TypeInContext,
-        LLVMInt8TypeInContext, LLVMModuleCreateWithNameInContext, LLVMPointerType,
-        LLVMPositionBuilderAtEnd, LLVMPrintModuleToString, LLVMVoidTypeInContext, LLVMBuildRet,
+        LLVMBuildRet, LLVMBuildRetVoid, LLVMConstReal, LLVMContextCreate, LLVMContextDispose,
+        LLVMCreateBuilderInContext, LLVMDisposeBuilder, LLVMDoubleTypeInContext, LLVMFunctionType,
+        LLVMInt64TypeInContext, LLVMInt8TypeInContext, LLVMModuleCreateWithNameInContext,
+        LLVMPointerType, LLVMPositionBuilderAtEnd, LLVMPrintModuleToString, LLVMVoidTypeInContext,
     },
     execution_engine::{
         LLVMAddGlobalMapping, LLVMCreateExecutionEngineForModule, LLVMDisposeExecutionEngine,
         LLVMGetFunctionAddress, LLVMOpaqueExecutionEngine,
     },
-    prelude::{LLVMBuilderRef, LLVMContextRef, LLVMModuleRef, LLVMTypeRef, LLVMValueRef, LLVMBasicBlockRef},
+    prelude::{
+        LLVMBasicBlockRef, LLVMBuilderRef, LLVMContextRef, LLVMModuleRef, LLVMTypeRef, LLVMValueRef,
+    },
 };
 
 use typescript_ast::ast;
@@ -394,18 +395,15 @@ impl Module {
                             }
 
                             let n = self.extern_functions.get(&identifier[0]).unwrap();
-                            unsafe {
-                                return LLVMBuildCall2(
-                                    self.builder,
-                                    n.ft,
-                                    n.func,
-                                    params.as_ptr() as _,
-                                    params.len() as _,
-                                    b"__call_extern\0".as_ptr() as _,
-                                );
-                            }
-                        }
-                        else if self.function_cache.contains_key(&identifier[0]) {
+                            return LLVMBuildCall2(
+                                self.builder,
+                                n.ft,
+                                n.func,
+                                params.as_ptr() as _,
+                                params.len() as _,
+                                b"__call_extern\0".as_ptr() as _,
+                            );
+                        } else if self.function_cache.contains_key(&identifier[0]) {
                             let mut params: Vec<LLVMValueRef> = Vec::new();
 
                             for p in args {
@@ -413,16 +411,14 @@ impl Module {
                             }
 
                             let n = self.function_cache.get(&identifier[0]).unwrap();
-                            unsafe {
-                                return LLVMBuildCall2(
-                                    self.builder,
-                                    n.ft,
-                                    n.func,
-                                    params.as_ptr() as _,
-                                    params.len() as _,
-                                    b"__call_intern\0".as_ptr() as _,
-                                );
-                            }
+                            return LLVMBuildCall2(
+                                self.builder,
+                                n.ft,
+                                n.func,
+                                params.as_ptr() as _,
+                                params.len() as _,
+                                b"__call_intern\0".as_ptr() as _,
+                            );
                         }
                     }
                     0 as _
@@ -451,31 +447,25 @@ impl Module {
         unsafe {
             let cname = CString::new(stmnt.name.clone().unwrap_or("generic".into())).unwrap();
 
-            let func_t = LLVMFunctionType(
-                LLVMVoidTypeInContext(self.context),
-                std::ptr::null_mut(),
-                0,
-                0,
-            );
-            let func = LLVMAddFunction(
-                self.module,
-                cname.as_ptr(),
-                func_t,
-            );
+            let mut args = Vec::new();
+            for _ in 0..stmnt.params.len() {
+                args.push(self.p64t);
+            }
+            let func_t = LLVMFunctionType(self.p64t, args.as_ptr() as _, args.len() as _, 0);
+            let func = LLVMAddFunction(self.module, cname.as_ptr(), func_t);
 
             if let Some(name) = stmnt.name.as_ref() {
-                self.function_cache.insert(name.clone(), InternFunction { 
-                    func,
-                    ft: func_t,
-                    name: cname.clone()
-                });
+                self.function_cache.insert(
+                    name.clone(),
+                    InternFunction {
+                        func,
+                        ft: func_t,
+                        name: cname.clone(),
+                    },
+                );
             }
 
-            let bb = LLVMAppendBasicBlockInContext(
-                self.context,
-                func,
-                cname.as_ptr(),
-            );
+            let bb = LLVMAppendBasicBlockInContext(self.context, func, cname.as_ptr());
 
             let old_block = self.current_block;
             self.current_block = bb;
@@ -488,8 +478,7 @@ impl Module {
 
             if last == 0 as _ {
                 LLVMBuildRetVoid(self.builder);
-            }
-            else {
+            } else {
                 LLVMBuildRet(self.builder, last);
             }
 
@@ -512,12 +501,9 @@ impl Module {
                 let value_ref = self.build_value(value);
                 self.build_global_set(name_ref, value_ref)
             }
-            ast::statement::Statement::Call(call) => {
-                self.build_value(call)
-            }
-            ast::statement::Statement::Function(func) => {
-                self.build_function(func)
-            },
+            ast::statement::Statement::Call(call) => self.build_value(call),
+            ast::statement::Statement::Function(func) => self.build_function(func),
+            ast::statement::Statement::Return(val) => self.build_value(val),
             _ => 0 as _,
         }
     }

@@ -42,7 +42,9 @@ fn parse_term(term: Pair<Rule>) -> Value {
         Rule::Call => {
             parse_call(inner)
         }
-        _ => Value::Undefined,
+        _ => {
+            Value::Undefined
+        }
     }
 }
 
@@ -257,6 +259,9 @@ fn parse_statement(stmnt: Pair<Rule>) -> Option<Statement> {
             Some(Statement::Function(func))
         }
         Rule::Call => Some(Statement::Call(Arc::new(parse_call(stmnt)))),
+        Rule::Return => {
+            Some(Statement::Return(parse_value(stmnt.into_inner().next().unwrap())))
+        }
         _ => None,
     }
 }
