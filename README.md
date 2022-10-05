@@ -2,8 +2,14 @@
 
 This is a Rust native implementation of a Typescript Parser and a JIT execution engine.
 
+This project comes in two crates:
+
 + [typescript-ast]: Parses Typescript into an AST.
 + [typescript-jit]: Takes an AST representation and creates an executable script.
+
+**State:** 
++ Parser: Templates and Async/Await are missing.
++ JIT: Creates functional binary code for functions.
 
 ## Why?
 

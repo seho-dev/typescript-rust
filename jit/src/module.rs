@@ -384,8 +384,6 @@ impl Module {
                     self.build_global_get(access)
                 }
                 ast::value::Value::Call { identifier, args } => {
-                    log::trace!("build call: {:?} {:?}", identifier, args);
-
                     if identifier.len() == 1 {
                         if self.extern_functions.contains_key(&identifier[0]) {
                             let mut params: Vec<LLVMValueRef> = Vec::new();
@@ -421,6 +419,7 @@ impl Module {
                             );
                         }
                     }
+
                     0 as _
                 }
                 ast::value::Value::Undefined => {
