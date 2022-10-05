@@ -5,6 +5,7 @@ edition = "2021"
 authors = ["Void <arne_simon@gmx.de>"]
 description = "A native Typescript parser and JIT runner."
 documentation = "https://docs.rs/typescript-jit"
+repository = "https://github.com/void-dragon/typescript"
 readme = "../README.md"
 keywords = ["typescript", "javascript", "ts", "js", "awesome"]
 categories = ["compilers", "parsing"]
