@@ -22,7 +22,7 @@ default = []
 trace = []
 
 [dependencies]
-typescript-ast = {path = "../ast"}
+typescript-ast = {path = "../ast", version = "0.0.1"}
 clap = {version = "4", features = ["derive"]}
 log = {version = "0.4", features = ["std"]}
 llvm-sys = "140"
