@@ -20,6 +20,8 @@ else {
 
 interface TheInterface {
     needHelp(nice: boolean)
+
+    superDuperHelper(): Promise<string>
 }
 
 class TheClass implements TheInterface {
@@ -27,6 +29,10 @@ class TheClass implements TheInterface {
 
     needHelp(nice: boolean = true) {
         // return this.help
+    }
+
+    async superDuperHelper(): Promise<string> {
+        return "it helped realy well"
     }
 }
 
@@ -40,7 +46,7 @@ type MyType = {
 
 type MyTypeToo = {can: boolean} | MyType
 
-function doStuff(one: number | string): number {
+function doStuff<T extends number | string>(one: T): number {
     print("stuff")
 
     return 5

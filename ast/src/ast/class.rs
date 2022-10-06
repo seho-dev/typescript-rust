@@ -1,4 +1,9 @@
-use super::function::{Function, Param};
+use std::collections::HashMap;
+
+use super::{
+    function::{Function, Param},
+    tstype::TsType,
+};
 
 #[derive(Debug)]
 pub struct Class {
@@ -7,4 +12,5 @@ pub struct Class {
     pub implements: Vec<String>,
     pub attributes: Vec<Param>,
     pub methods: Vec<Function>,
+    pub template_args: HashMap<String, Vec<TsType>>,
 }

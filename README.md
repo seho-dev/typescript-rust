@@ -8,7 +8,7 @@ This project comes in two crates:
 + [typescript-jit]: Takes an AST representation and creates an executable script.
 
 **State:** 
-+ Parser: Templates and Async/Await are missing.
++ Parser: Async/Await are missing.
 + JIT: Creates functional binary code for functions.
 
 ## Why?

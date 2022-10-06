@@ -1,4 +1,4 @@
-use std::{error::Error, path::Path, sync::Arc};
+use std::{error::Error, path::Path, sync::Arc, collections::HashMap};
 
 use crate::ast::{
     class::Class,
@@ -100,16 +100,38 @@ fn parse_param(param: Pair<Rule>) -> Param {
     }
 }
 
+fn parse_template_definition(tmp: Pair<Rule>) -> (String, Vec<TsType>) {
+    let mut inner = tmp.into_inner();
+
+    let name = inner.next().unwrap().as_str();
+
+    let kinds = if let Some(typedef) = inner.next() {
+        parse_param_kind(typedef)
+    }
+    else {
+        Vec::new()
+    };
+
+    (name.into(), kinds)
+}
+
 fn parse_function(func: Pair<Rule>) -> Function {
     let mut name = None;
     let mut params = Vec::new();
     let mut returns = Vec::new();
     let mut block_statements = Vec::new();
+    let mut template_args = HashMap::new();
 
     for inner in func.into_inner() {
         match inner.as_rule() {
             Rule::Name => {
                 name = Some(inner.as_str().into());
+            }
+            Rule::TemplateDefinition => {
+                for p in inner.into_inner() {
+                    let (name, kinds) = parse_template_definition(p);
+                    template_args.insert(name, kinds);
+                }
             }
             Rule::FunctionDefinition => {
                 for p in inner.into_inner() {
@@ -141,6 +163,8 @@ fn parse_function(func: Pair<Rule>) -> Function {
 
     let f = Function {
         name,
+        is_async: false,
+        template_args,
         params,
         returns,
         block: block_statements,
@@ -314,9 +338,16 @@ fn parse_class(stmnt: Pair<Rule>) -> Statement {
     let mut implements = Vec::new();
     let mut attributes = Vec::new();
     let mut methods = Vec::new();
+    let mut template_args = HashMap::new();
 
     while let Some(block) = inner.next() {
         match block.as_rule() {
+            Rule::TemplateDefinition => {
+                for inner in block.into_inner() {
+                    let (name, args) = parse_template_definition(inner);
+                    template_args.insert(name, args);
+                }
+            }
             Rule::Extends => {
                 let inner = block.into_inner().next().unwrap();
                 extends = Some(inner.as_str().into());
@@ -349,6 +380,7 @@ fn parse_class(stmnt: Pair<Rule>) -> Statement {
         implements,
         attributes,
         methods,
+        template_args,
     };
     Statement::Class(class)
 }

@@ -28,8 +28,11 @@ Else = { "else" ~ Block }
 NameList = { Name ~ ("," ~ Name)* }
 IdentifierList = { Identifier ~ ("," ~ Identifier)* }
 
-TypeIdentifier = { "boolean" | "null" | "any" | "number" | "string" | "void" | Identifier }
+TypeIdentifier = { "boolean" | "null" | "any" | "number" | "string" | "void" | Identifier ~ TemplateDefinition | Identifier }
 TypeIdentifiers = { TypeIdentifier ~ ("|" ~ TypeIdentifier)* }
+
+TemplateName = { Name ~ ("extends" ~ TypeIdentifiers)? }
+TemplateDefinition = { "<" ~ TemplateName ~ ">" }
 
 InterfaceExtends = { "extends" ~ IdentifierList }
 InterfaceAttribute = { Param }
@@ -43,7 +46,7 @@ Method = { Name ~ FunctionDefinition ~ Block }
 Extends = { "extends" ~ Identifier }
 Implements = { "implements" ~ IdentifierList }
 ClassBody = { "{" ~ (Method | ClassAttribute)* ~ "}" }
-Class = { "class" ~ Name ~ Extends? ~ Implements? ~ ClassBody }
+Class = { "class" ~ Name ~ TemplateDefinition? ~ Extends? ~ Implements? ~ ClassBody }
 
 TypeTuple = { Name ~ ":" ~ TypeIdentifier }
 TypeBlock = { "{" ~ TypeTuple? ~ ("," ~ TypeTuple)* ~ ","? ~ "}" }
@@ -54,7 +57,7 @@ Param = { Name ~ (":" ~ TypeIdentifiers)? ~ ("=" ~ Term)? }
 ParamList = { Param? ~ ("," ~ Param)* }
 ReturnType = { ":" ~ TypeIdentifiers }
 FunctionDefinition = { "(" ~ ParamList ~ ")" ~ ReturnType? }
-Function = { "function" ~ Name ~ FunctionDefinition ~ Block }
+Function = { "function" ~ Name ~ TemplateDefinition? ~ FunctionDefinition ~ Block }
 
 Closur = { FunctionDefinition ~ "=>" ~ Block | Statement }
 
