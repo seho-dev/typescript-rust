@@ -128,6 +128,126 @@ pub unsafe extern "C" fn div(left: *const Value, right: *const Value) -> *const 
     Arc::into_raw(Arc::new(Value::Number(0.0)))
 }
 
+pub unsafe extern "C" fn _mod(left: *const Value, right: *const Value) -> *const Value {
+    #[cfg(feature = "trace")]
+    log::trace!(target: "typescript.callback", "!! mod !!");
+
+    let left_rc = Arc::from_raw(left);
+    let right_rc = Arc::from_raw(right);
+
+    if let Value::Number(l) = *left_rc {
+        if let Value::Number(r) = *right_rc {
+            return Arc::into_raw(Arc::new(Value::Number(l % r)));
+        }
+    }
+
+    Arc::into_raw(Arc::new(Value::Number(0.0)))
+}
+
+pub unsafe extern "C" fn gt(left: *const Value, right: *const Value) -> *const Value {
+    #[cfg(feature = "trace")]
+    log::trace!(target: "typescript.callback", "!! gt !!");
+
+    let left_rc = Arc::from_raw(left);
+    let right_rc = Arc::from_raw(right);
+
+    if let Value::Number(l) = *left_rc {
+        if let Value::Number(r) = *right_rc {
+            return Arc::into_raw(Arc::new(Value::Boolean(l > r)));
+        }
+    }
+
+    Arc::into_raw(Arc::new(Value::Boolean(false)))
+}
+
+pub unsafe extern "C" fn gte(left: *const Value, right: *const Value) -> *const Value {
+    #[cfg(feature = "trace")]
+    log::trace!(target: "typescript.callback", "!! gte !!");
+
+    let left_rc = Arc::from_raw(left);
+    let right_rc = Arc::from_raw(right);
+
+    if let Value::Number(l) = *left_rc {
+        if let Value::Number(r) = *right_rc {
+            return Arc::into_raw(Arc::new(Value::Boolean(l >= r)));
+        }
+    }
+
+    Arc::into_raw(Arc::new(Value::Boolean(false)))
+}
+
+pub unsafe extern "C" fn lt(left: *const Value, right: *const Value) -> *const Value {
+    #[cfg(feature = "trace")]
+    log::trace!(target: "typescript.callback", "!! lt !!");
+
+    let left_rc = Arc::from_raw(left);
+    let right_rc = Arc::from_raw(right);
+
+    if let Value::Number(l) = *left_rc {
+        if let Value::Number(r) = *right_rc {
+            return Arc::into_raw(Arc::new(Value::Boolean(l < r)));
+        }
+    }
+
+    Arc::into_raw(Arc::new(Value::Boolean(false)))
+}
+
+pub unsafe extern "C" fn lte(left: *const Value, right: *const Value) -> *const Value {
+    #[cfg(feature = "trace")]
+    log::trace!(target: "typescript.callback", "!! lte !!");
+
+    let left_rc = Arc::from_raw(left);
+    let right_rc = Arc::from_raw(right);
+
+    if let Value::Number(l) = *left_rc {
+        if let Value::Number(r) = *right_rc {
+            return Arc::into_raw(Arc::new(Value::Boolean(l <= r)));
+        }
+    }
+
+    Arc::into_raw(Arc::new(Value::Boolean(false)))
+}
+
+pub unsafe extern "C" fn eq(left: *const Value, right: *const Value) -> *const Value {
+    #[cfg(feature = "trace")]
+    log::trace!(target: "typescript.callback", "!! eq !!");
+
+    let left_rc = Arc::from_raw(left);
+    let right_rc = Arc::from_raw(right);
+
+    Arc::into_raw(Arc::new(Value::Boolean(*left_rc == *right_rc)))
+}
+
+pub unsafe extern "C" fn neq(left: *const Value, right: *const Value) -> *const Value {
+    #[cfg(feature = "trace")]
+    log::trace!(target: "typescript.callback", "!! neq !!");
+
+    let left_rc = Arc::from_raw(left);
+    let right_rc = Arc::from_raw(right);
+
+    Arc::into_raw(Arc::new(Value::Boolean(*left_rc != *right_rc)))
+}
+
+pub unsafe extern "C" fn and(left: *const Value, right: *const Value) -> *const Value {
+    #[cfg(feature = "trace")]
+    log::trace!(target: "typescript.callback", "!! and !!");
+
+    let left_rc = Arc::from_raw(left);
+    let right_rc = Arc::from_raw(right);
+
+    Arc::into_raw(Arc::new(Value::Boolean(left_rc.to_bool() && right_rc.to_bool())))
+}
+
+pub unsafe extern "C" fn or(left: *const Value, right: *const Value) -> *const Value {
+    #[cfg(feature = "trace")]
+    log::trace!(target: "typescript.callback", "!! or !!");
+
+    let left_rc = Arc::from_raw(left);
+    let right_rc = Arc::from_raw(right);
+
+    Arc::into_raw(Arc::new(Value::Boolean(left_rc.to_bool() || right_rc.to_bool())))
+}
+
 pub extern "C" fn array_new() -> *const Value {
     #[cfg(feature = "trace")]
     log::trace!(target: "typescript.callback", "!! new array !!");

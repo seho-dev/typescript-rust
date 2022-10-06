@@ -18,6 +18,8 @@ else {
     bu = 1
 }
 
+print(bu)
+
 interface TheInterface {
     needHelp(nice: boolean)
 

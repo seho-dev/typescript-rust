@@ -119,6 +119,16 @@ impl Module {
             module.add_fn("__sub", callbacks::sub as *mut _, 2);
             module.add_fn("__mul", callbacks::mul as *mut _, 2);
             module.add_fn("__div", callbacks::div as *mut _, 2);
+            module.add_fn("__mod", callbacks::_mod as *mut _, 2);
+            module.add_fn("__gt", callbacks::gt as *mut _, 2);
+            module.add_fn("__gte", callbacks::gte as *mut _, 2);
+            module.add_fn("__lt", callbacks::lt as *mut _, 2);
+            module.add_fn("__lte", callbacks::lte as *mut _, 2);
+            module.add_fn("__eq", callbacks::eq as *mut _, 2);
+            module.add_fn("__neq", callbacks::neq as *mut _, 2);
+            module.add_fn("__and", callbacks::and as *mut _, 2);
+            module.add_fn("__or", callbacks::or as *mut _, 2);
+
             {
                 let mut args = Vec::new();
                 args.push(LLVMPointerType(LLVMInt8TypeInContext(module.context), 0));
@@ -332,15 +342,15 @@ impl Module {
             Operation::Sub => self.extern_functions.get("__sub").unwrap(),
             Operation::Mul => self.extern_functions.get("__mul").unwrap(),
             Operation::Div => self.extern_functions.get("__div").unwrap(),
-            Operation::Eq => self.extern_functions.get("__add").unwrap(),
-            Operation::Ne => self.extern_functions.get("__add").unwrap(),
-            Operation::Gt => self.extern_functions.get("__add").unwrap(),
-            Operation::Gte => self.extern_functions.get("__add").unwrap(),
-            Operation::Lt => self.extern_functions.get("__add").unwrap(),
-            Operation::Lte => self.extern_functions.get("__add").unwrap(),
-            Operation::Mod => self.extern_functions.get("__add").unwrap(),
-            Operation::And => self.extern_functions.get("__add").unwrap(),
-            Operation::Or => self.extern_functions.get("__add").unwrap(),
+            Operation::Eq => self.extern_functions.get("__eq").unwrap(),
+            Operation::Ne => self.extern_functions.get("__neq").unwrap(),
+            Operation::Gt => self.extern_functions.get("__gt").unwrap(),
+            Operation::Gte => self.extern_functions.get("__gte").unwrap(),
+            Operation::Lt => self.extern_functions.get("__lt").unwrap(),
+            Operation::Lte => self.extern_functions.get("__lte").unwrap(),
+            Operation::Mod => self.extern_functions.get("__mod").unwrap(),
+            Operation::And => self.extern_functions.get("__and").unwrap(),
+            Operation::Or => self.extern_functions.get("__or").unwrap(),
         };
 
         let args = vec![left_ref, right_ref];
