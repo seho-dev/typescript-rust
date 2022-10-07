@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use super::{
     class::Class, function::Function, interface::Interface, typedefinition::TypeDefinition,
-    value::Value,
+    value::Value, switch::Switch,
 };
 
 #[derive(Debug)]
@@ -31,6 +31,7 @@ pub enum Statement {
         elseifs: Vec<ElseIf>,
         els: Vec<Statement>,
     },
+    Switch(Switch),
     Return(Arc<Value>),
     Function(Function),
     Call(Arc<Value>),

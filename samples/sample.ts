@@ -18,6 +18,15 @@ else {
     bu = 1
 }
 
+switch ("hello") {
+    case "hello":
+        print("yes switch works")
+        break
+    default:
+        print("should not be seen")
+        break
+}
+
 print(bu)
 
 interface TheInterface {

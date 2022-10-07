@@ -25,6 +25,11 @@ If = { "if" ~ "(" ~ Expression ~ ")" ~ Block ~ ElseIf* ~ Else? }
 ElseIf = { "else" ~ "if" ~ "(" ~ Expression ~ ")" ~ Block }
 Else = { "else" ~ Block }
 
+Break = { "break" }
+Case = { "case" ~ Term ~ ":" ~ Statement* ~ Break? }
+Default = { "default" ~ ":" ~ Statement* ~ Break? }
+Switch = { "switch" ~ "(" ~ Expression ~ ")" ~ "{" ~ (Case | Default)* ~ "}" }
+
 NameList = { Name ~ ("," ~ Name)* }
 IdentifierList = { Identifier ~ ("," ~ Identifier)* }
 
@@ -61,7 +66,7 @@ Function = { "function" ~ Name ~ TemplateDefinition? ~ FunctionDefinition ~ Bloc
 
 Closur = { FunctionDefinition ~ "=>" ~ Block | Statement }
 
-Statement = { (Const | Let | Assign | If | Function | Call | Return) ~ ";"? }
+Statement = { (Const | Let | Assign | If | Switch | Function | Call | Return) ~ ";"? }
 Import = { "import" ~ String }
 ImportName = { Name ~ ("as" ~ Name)? }
 ImportNameList = { ImportName ~ ("," ~ ImportName)* }

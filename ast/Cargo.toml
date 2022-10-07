@@ -17,5 +17,6 @@ strip = true
 lto = true
 
 [dependencies]
+log = "0.4"
 pest = "2"
 pest_derive = "2"

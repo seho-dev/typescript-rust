@@ -8,7 +8,7 @@ use crate::ast::{
     statement::{ElseIf, Statement},
     tstype::TsType,
     typedefinition::{TypeBlock, TypeDefinition},
-    value::Value,
+    value::Value, switch::{Switch, Case},
 };
 use pest::{iterators::Pair, Parser};
 use pest_derive::Parser;
@@ -278,6 +278,10 @@ fn parse_statement(stmnt: Pair<Rule>) -> Option<Statement> {
                 els: else_block,
             })
         }
+        Rule::Switch => {
+            let switch = parse_switch(stmnt);
+            Some(Statement::Switch(switch))
+        }
         Rule::Function => {
             let func = parse_function(stmnt);
             Some(Statement::Function(func))
@@ -287,6 +291,69 @@ fn parse_statement(stmnt: Pair<Rule>) -> Option<Statement> {
             Some(Statement::Return(parse_value(stmnt.into_inner().next().unwrap())))
         }
         _ => None,
+    }
+}
+
+fn parse_switch(stmnt: Pair<Rule>) -> Switch {
+    let mut inner = stmnt.into_inner();
+
+    let value = parse_value(inner.next().unwrap());
+    let mut branches = Vec::new();
+    let mut default = None;
+
+    while let Some(stmnt) = inner.next() {
+        match stmnt.as_rule() {
+            Rule::Case => {
+                let mut inner = stmnt.into_inner();
+                let expr = Arc::new(parse_term(inner.next().unwrap()));
+                let mut block = Vec::new();
+
+                while let Some(stmnt) = inner.next() {
+                    match stmnt.as_rule() {
+                        Rule::Statement => {
+                            if let Some(stmnt) =  parse_statement(stmnt) {
+                                block.push(stmnt);
+                            }
+                        }
+                        Rule::Break => break,
+                        _ => {}
+                    }
+                }
+
+                branches.push(Case {
+                    expr,
+                    block,
+                });
+            }
+            Rule::Default => {
+                let mut block = Vec::new();
+
+                for inner in stmnt.into_inner() {
+                    match inner.as_rule() {
+                        Rule::Statement => {
+                            if let Some(stmnt) = parse_statement(inner) {
+                                block.push(stmnt);
+                            }
+                        }
+                        Rule::Break => break,
+                        _ => {
+                            log::error!("unknown switch default statemnt: {:?}", inner);
+                        }
+                    }
+                }
+
+                default = Some(block);
+            }
+            _ => {
+                log::error!("could not parse: {:?}", stmnt);
+            }
+        }
+    }
+
+    Switch {
+        value,
+        branches,
+        default,
     }
 }
 

@@ -385,6 +385,7 @@ checksum = "dcf81ac59edc17cc8697ff311e8f5ef2d99fcbd9817b34cec66f90b6c3dfd987"
 name = "typescript-ast"
 version = "0.0.1"
 dependencies = [
+ "log",
  "pest",
  "pest_derive",
 ]
