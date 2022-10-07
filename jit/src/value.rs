@@ -14,8 +14,8 @@ pub enum Value {
 impl Value {
     pub fn to_bool(&self) -> bool {
         match self {
-            Self::Number(n) => n != 0.0,
-            Self::Boolean(b) => b,
+            Self::Number(n) => *n != 0.0,
+            Self::Boolean(b) => *b,
             Self::Null => false,
             _ => true,
         }
