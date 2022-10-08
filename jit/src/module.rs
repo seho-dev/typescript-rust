@@ -14,7 +14,7 @@ use llvm_sys::{
         LLVMBuildRet, LLVMBuildRetVoid, LLVMConstReal, LLVMContextCreate, LLVMContextDispose,
         LLVMCreateBuilderInContext, LLVMDisposeBuilder, LLVMDoubleTypeInContext, LLVMFunctionType,
         LLVMInt64TypeInContext, LLVMInt8TypeInContext, LLVMModuleCreateWithNameInContext,
-        LLVMPointerType, LLVMPositionBuilderAtEnd, LLVMPrintModuleToString, LLVMVoidTypeInContext,
+        LLVMPointerType, LLVMPositionBuilderAtEnd, LLVMPrintModuleToString, LLVMVoidTypeInContext, LLVMBuildCondBr, LLVMAppendBasicBlock, LLVMBuildBr, LLVMBuildPhi, LLVMBuildICmp, LLVMConstInt, LLVMAddIncoming, LLVMGetInsertBlock, LLVMDisposeMessage,
     },
     execution_engine::{
         LLVMAddGlobalMapping, LLVMCreateExecutionEngineForModule, LLVMDisposeExecutionEngine,
@@ -22,7 +22,7 @@ use llvm_sys::{
     },
     prelude::{
         LLVMBasicBlockRef, LLVMBuilderRef, LLVMContextRef, LLVMModuleRef, LLVMTypeRef, LLVMValueRef,
-    },
+    }, LLVMBasicBlock, LLVMIntPredicate, analysis::{LLVMVerifyModule, LLVMVerifierFailureAction},
 };
 
 use typescript_ast::ast;
@@ -47,6 +47,7 @@ pub struct Module {
     builder: LLVMBuilderRef,
     context: LLVMContextRef,
     module: LLVMModuleRef,
+    current_function: LLVMValueRef,
     current_block: LLVMBasicBlockRef,
     f64t: LLVMTypeRef,
     p64t: LLVMTypeRef,
@@ -76,6 +77,7 @@ impl Module {
             builder: 0 as _,
             context: 0 as _,
             module: 0 as _,
+            current_function: 0 as _,
             current_block: 0 as _,
             f64t: 0 as _,
             p64t: 0 as _,
@@ -131,15 +133,22 @@ impl Module {
 
             {
                 let mut args = Vec::new();
+                args.push(module.p64t);
+                let ret = LLVMInt8TypeInContext(module.context);
+
+                module.add_fn_with("__to_bool", ret, args, callbacks::to_bool as _);
+            }
+            {
+                let mut args = Vec::new();
                 args.push(LLVMPointerType(LLVMInt8TypeInContext(module.context), 0));
 
-                module.add_fn_with("__string_from", args, callbacks::string_from as _);
+                module.add_fn_with("__string_from", module.p64t, args, callbacks::string_from as _);
             }
             {
                 let mut args = Vec::new();
                 args.push(module.f64t);
 
-                module.add_fn_with("__number_new", args, callbacks::number_new as _);
+                module.add_fn_with("__number_new", module.p64t, args, callbacks::number_new as _);
             }
             module.add_fn("print", print as *mut _, 1);
 
@@ -154,6 +163,7 @@ impl Module {
                 b"__main__\0".as_ptr() as *const _,
                 main_func_t,
             );
+            module.current_function = main;
 
             let bb = LLVMAppendBasicBlockInContext(
                 module.context,
@@ -164,10 +174,20 @@ impl Module {
             LLVMPositionBuilderAtEnd(module.builder, bb);
             module.current_block = bb;
 
-            module.consume(m);
+            module.consume(&m);
 
             LLVMBuildRetVoid(module.builder);
 
+            {
+                let mut data = 0u8 as _;
+                let ret = LLVMVerifyModule(module.module, LLVMVerifierFailureAction::LLVMPrintMessageAction, &mut data);
+
+                if ret != 0 {
+                    let cast = CStr::from_ptr(data);
+                    println!("verifiy: {:?}", cast);
+                    LLVMDisposeMessage(data);
+                }
+            }
             LLVMDisposeBuilder(module.builder);
             module.string_cache.clear();
 
@@ -277,16 +297,16 @@ impl Module {
 
     fn build_string(&mut self, s: &str) -> LLVMValueRef {
         unsafe {
-            // let cstr = LLVMBuildGlobalStringPtr(
-            //     self.builder,
-            //     CString::new(s).unwrap().as_ptr(),
-            //     b"__str\0".as_ptr() as *const _,
-            // );
             let cstr = if let Some(cstr) = self.string_cache.get(s) {
                 *cstr
             } else {
                 let cs = CString::new(s).unwrap();
-                let cstr = LLVMBuildGlobalString(
+                // let cstr = LLVMBuildGlobalString(
+                //     self.builder,
+                //     cs.as_ptr(),
+                //     b"__str\0".as_ptr() as *const _,
+                // );
+                let cstr = LLVMBuildGlobalStringPtr(
                     self.builder,
                     cs.as_ptr(),
                     b"__str\0".as_ptr() as *const _,
@@ -452,7 +472,113 @@ impl Module {
         }
     }
 
-    fn build_function(&mut self, stmnt: ast::function::Function) -> LLVMValueRef {
+    fn build_cmp(&mut self, val: Arc<ast::value::Value>) -> LLVMValueRef {
+        unsafe {
+            let cond = self.build_value(val.clone());
+            
+            let cond = {
+                let null = self.extern_functions.get("__to_bool").unwrap();
+                let args: Vec<LLVMValueRef> = vec![cond];
+                LLVMBuildCall2(
+                    self.builder,
+                    null.ft,
+                    null.func,
+                    args.as_ptr() as *mut LLVMValueRef,
+                    args.len() as u32,
+                    b"__to_bool\0".as_ptr() as *const _,
+                )
+            };
+
+            let one = LLVMConstInt(LLVMInt8TypeInContext(self.context), 1, 0);
+            LLVMBuildICmp(
+                self.builder, 
+                LLVMIntPredicate::LLVMIntEQ, 
+                cond, 
+                one, 
+                b"cmp\0".as_ptr() as _
+            )
+        }
+    }
+
+    fn build_if(&mut self, stmnt: &ast::ifelse::IfElse) -> LLVMValueRef {
+        unsafe {
+            let cond = self.build_cmp(stmnt.expr.clone());
+
+            let _then = LLVMAppendBasicBlock(self.current_function, b"then\0".as_ptr() as _);
+            let mut elseifs = Vec::new();
+
+            for i in 0..stmnt.elseifs.len() {
+                elseifs.push((
+                    LLVMAppendBasicBlock(self.current_function, b"elseif_check\0".as_ptr() as _),
+                    LLVMAppendBasicBlock(self.current_function, b"elseif\0".as_ptr() as _),
+                ));
+            }
+
+            let _else = LLVMAppendBasicBlock(self.current_function, b"else\0".as_ptr() as _);
+            let _merge = LLVMAppendBasicBlock(self.current_function, b"merge\0".as_ptr() as _);
+
+            let _if = LLVMBuildCondBr(self.builder, cond, _then, _else);
+
+            let old_block = self.current_block;
+            self.current_block = _then;
+            LLVMPositionBuilderAtEnd(self.builder, self.current_block);
+
+            for stmnt in &stmnt.block {
+                self.consume_statement(stmnt);
+            }
+
+            LLVMBuildBr(self.builder, _merge);
+            // let mut _then = LLVMGetInsertBlock(self.builder);
+
+            for i in 0..stmnt.elseifs.len() {
+                let elseif = &stmnt.elseifs[i];
+                let (check, body) = elseifs[i];
+                let next_block = if i == stmnt.elseifs.len() - 1 {
+                    _else
+                }
+                else {
+                    elseifs[i + 1].1
+                };
+                self.current_block = check;
+                LLVMPositionBuilderAtEnd(self.builder, self.current_block);
+
+                let cond = self.build_cmp(elseif.expr.clone());
+                let _if = LLVMBuildCondBr(self.builder, cond, body, next_block);
+
+                self.current_block = body;
+                LLVMPositionBuilderAtEnd(self.builder, self.current_block);
+
+                for stmnt in &elseif.block {
+                    self.consume_statement(stmnt);
+                }
+
+                LLVMBuildBr(self.builder, _merge);
+            }
+
+            self.current_block = _else;
+            LLVMPositionBuilderAtEnd(self.builder, self.current_block);
+
+            for stmnt in &stmnt.els {
+                self.consume_statement(stmnt);
+            }
+
+            LLVMBuildBr(self.builder, _merge);
+            // let mut _else = LLVMGetInsertBlock(self.builder);
+
+            self.current_block = _merge;
+            LLVMPositionBuilderAtEnd(self.builder, _merge);
+            // let phi = LLVMBuildPhi(self.builder, self.p64t, b"phi\0".as_ptr() as _);
+            // LLVMAddIncoming(phi, &mut if_v, &mut _then, 1);
+            // LLVMAddIncoming(phi, &mut else_v, &mut _else, 1);
+
+            // self.current_block = old_block;
+            // LLVMPositionBuilderAtEnd(self.builder, self.current_block);
+
+            0 as _
+        }
+    }
+
+    fn build_function(&mut self, stmnt: &ast::function::Function) -> LLVMValueRef {
         unsafe {
             let cname = CString::new(stmnt.name.clone().unwrap_or("generic".into())).unwrap();
 
@@ -481,7 +607,7 @@ impl Module {
             LLVMPositionBuilderAtEnd(self.builder, self.current_block);
 
             let mut last = 0 as _;
-            for stmnt in stmnt.block {
+            for stmnt in &stmnt.block {
                 last = self.consume_statement(stmnt);
             }
 
@@ -498,27 +624,33 @@ impl Module {
         }
     }
 
-    fn consume_statement(&mut self, statement: ast::statement::Statement) -> LLVMValueRef {
+    fn consume_statement(&mut self, statement: &ast::statement::Statement) -> LLVMValueRef {
         match statement {
             ast::statement::Statement::Const { name, value } => {
-                let name_ref = self.build_string(&name);
-                let value_ref = self.build_value(value);
+                let name_ref = self.build_string(name);
+                let value_ref = self.build_value(value.clone());
                 self.build_global_set(name_ref, value_ref)
             }
             ast::statement::Statement::Let { name, value } => {
-                let name_ref = self.build_string(&name);
-                let value_ref = self.build_value(value);
+                let name_ref = self.build_string(name);
+                let value_ref = self.build_value(value.clone());
                 self.build_global_set(name_ref, value_ref)
             }
-            ast::statement::Statement::Call(call) => self.build_value(call),
+            ast::statement::Statement::Assign { identifier, value } => {
+                let name_ref = self.build_string(identifier);
+                let value_ref = self.build_value(value.clone());
+                self.build_global_set(name_ref, value_ref)
+            }
+            ast::statement::Statement::Call(call) => self.build_value(call.clone()),
             ast::statement::Statement::Function(func) => self.build_function(func),
-            ast::statement::Statement::Return(val) => self.build_value(val),
+            ast::statement::Statement::Return(val) => self.build_value(val.clone()),
+            ast::statement::Statement::If(ifelse) => self.build_if(ifelse),
             _ => 0 as _,
         }
     }
 
-    fn consume(&mut self, module: ast::Module) {
-        for stmnt in module.statements {
+    fn consume(&mut self, module: &ast::Module) {
+        for stmnt in &module.statements {
             self.consume_statement(stmnt);
         }
     }
@@ -529,13 +661,13 @@ impl Module {
             args.push(self.p64t);
         }
 
-        self.add_fn_with(name, args, f);
+        self.add_fn_with(name, self.p64t, args, f);
     }
 
-    pub fn add_fn_with(&mut self, name: &str, args: Vec<LLVMTypeRef>, f: *mut c_void) {
+    pub fn add_fn_with(&mut self, name: &str, ret: LLVMTypeRef, args: Vec<LLVMTypeRef>, f: *mut c_void) {
         let cname = CString::new(name).unwrap();
         let (func, ft) = unsafe {
-            let ft = LLVMFunctionType(self.p64t, args.as_ptr() as *mut _, args.len() as u32, 0);
+            let ft = LLVMFunctionType(ret, args.as_ptr() as *mut _, args.len() as u32, 0);
             (LLVMAddFunction(self.module, cname.as_ptr(), ft), ft)
         };
 

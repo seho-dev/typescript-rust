@@ -5,10 +5,10 @@ use crate::ast::{
     function::{Function, Param},
     interface::Interface,
     module::{Import, ImportAlias, Module},
-    statement::{ElseIf, Statement},
+    statement::Statement,
     tstype::TsType,
     typedefinition::{TypeBlock, TypeDefinition},
-    value::Value, switch::{Switch, Case},
+    value::Value, switch::{Switch, Case}, ifelse::{IfElse, ElseIf},
 };
 use pest::{iterators::Pair, Parser};
 use pest_derive::Parser;
@@ -271,12 +271,12 @@ fn parse_statement(stmnt: Pair<Rule>) -> Option<Statement> {
                 }
             }
 
-            Some(Statement::If {
+            Some(Statement::If(IfElse {
                 expr: parse_value(expr),
                 block: block_stmnts,
                 elseifs,
                 els: else_block,
-            })
+            }))
         }
         Rule::Switch => {
             let switch = parse_switch(stmnt);

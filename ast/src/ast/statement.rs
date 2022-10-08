@@ -1,15 +1,9 @@
 use std::sync::Arc;
 
 use super::{
-    class::Class, function::Function, interface::Interface, typedefinition::TypeDefinition,
-    value::Value, switch::Switch,
+    class::Class, function::Function, ifelse::IfElse, interface::Interface, switch::Switch,
+    typedefinition::TypeDefinition, value::Value,
 };
-
-#[derive(Debug)]
-pub struct ElseIf {
-    pub expr: Arc<Value>,
-    pub block: Vec<Statement>,
-}
 
 #[derive(Debug)]
 pub enum Statement {
@@ -25,12 +19,7 @@ pub enum Statement {
         identifier: String,
         value: Arc<Value>,
     },
-    If {
-        expr: Arc<Value>,
-        block: Vec<Statement>,
-        elseifs: Vec<ElseIf>,
-        els: Vec<Statement>,
-    },
+    If(IfElse),
     Switch(Switch),
     Return(Arc<Value>),
     Function(Function),

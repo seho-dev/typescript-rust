@@ -63,6 +63,12 @@ pub unsafe extern "C" fn global_set(
     0 as _
 }
 
+pub unsafe extern "C" fn to_bool(val: *const Value) -> i8 {
+    let val = Arc::from_raw(val);
+    let bool = val.to_bool();
+    Arc::into_raw(val);
+    bool as _
+}
 
 pub unsafe extern "C" fn add(left: *const Value, right: *const Value) -> *const Value {
     #[cfg(feature = "trace")]
