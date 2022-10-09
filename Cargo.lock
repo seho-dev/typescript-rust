@@ -403,6 +403,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "typescript-tests"
+version = "0.0.1"
+dependencies = [
+ "log",
+ "typescript-ast",
+ "typescript-jit",
+]
+
+[[package]]
 name = "ucd-trie"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"

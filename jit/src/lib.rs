@@ -17,8 +17,11 @@ use self::module::Module;
 
 mod callbacks;
 mod context;
+mod error;
 mod module;
 mod value;
+
+pub use value::Value;
 
 fn source_hash(source: &str) -> Vec<u8> {
     let mut sha = sha2::Sha256::new();
@@ -49,7 +52,7 @@ impl Runtime {
         let source = std::fs::read_to_string(filename)?;
         let hash = source_hash(&source);
         let dur = start.elapsed().unwrap();
-        log::info!(target: "typescript.jit", "read time: {}.{:06}", dur.as_secs(), dur.subsec_micros());
+        log::info!("read time: {}.{:06}", dur.as_secs(), dur.subsec_micros());
 
         let opt_module = self.modules.read().unwrap().get(&hash).cloned();
         if let Some(module) = opt_module {
@@ -58,19 +61,19 @@ impl Runtime {
             let start = SystemTime::now();
             let ast_module = parser::source(&source)?;
             let dur = start.elapsed().unwrap();
-            log::info!(target: "typescrtip.jit", "parse time: {}.{:06}", dur.as_secs(), dur.subsec_micros());
+            log::info!("parse time: {}.{:06}", dur.as_secs(), dur.subsec_micros());
 
             let start = SystemTime::now();
-            let module = Arc::new(Module::from_ast(hash.clone(), ast_module, save_ir));
+            let module = Arc::new(Module::from_ast(hash.clone(), ast_module, save_ir)?);
             let dur = start.elapsed().unwrap();
-            log::info!(target: "typescript.jit", "compile time: {}.{:06}", dur.as_secs(), dur.subsec_micros());
+            log::info!("build time: {}.{:06}", dur.as_secs(), dur.subsec_micros());
 
             self.modules.write().unwrap().insert(hash, module.clone());
 
             let start = SystemTime::now();
             module.run();
             let dur = start.elapsed().unwrap();
-            log::info!(target: "typescript.jit", "run time: {}.{:06}", dur.as_secs(), dur.subsec_micros());
+            log::info!("run time: {}.{:06}", dur.as_secs(), dur.subsec_micros());
 
             Ok(module)
         }

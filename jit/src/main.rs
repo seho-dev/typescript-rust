@@ -18,7 +18,7 @@ impl log::Log for MyLogger {
 
     fn log(&self, record: &log::Record) {
         let mut file = self.file.lock().unwrap();
-        writeln!(file, "{:6} - {:20} - {}", record.level(), record.target(), record.args()).unwrap();
+        writeln!(file, "{:6} - {:25} - {}", record.level(), record.target(), record.args()).unwrap();
     }
 }
 

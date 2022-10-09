@@ -2,13 +2,12 @@ Number = @{ (ASCII_DIGIT | "." | "-" | "_")+ }
 Name = @{ ASCII_ALPHA ~ (ASCII_ALPHANUMERIC | "_")* }
 String = @{ "\"" ~ (ASCII_ALPHANUMERIC | "." | " " | "\\" | "/")* ~ "\"" }
 Identifier = @{ Name ~ ("." ~ Name)* }
-True = { "true" }
-False = { "false" }
-Null = { "null" }
+Boolean = { "true" | "false" }
 Undefined = { "undefined" }
+Null = { "null" }
 Array = { "[" ~ Expression? ~ ("," ~ Expression)* ~ ","? ~ "]" }
 Operand = @{ "+" | "-" | "*" | "/" | "%" | "<" | ">" | "<=" | ">=" | "&&" | "||" | "==" | "!="}
-Term = { Number | True | False | String | Array | Call | Closur | Identifier | "(" ~ Expression ~ ")" }
+Term = { Number | Boolean | Null | Undefined | String | Array | Call | Closur | Identifier | "(" ~ Expression ~ ")" }
 PrefixTerm = { ("++" | "--") ~ Term }
 PostTerm = { Term ~ ("++" | "--") }
 Expression = {
@@ -26,7 +25,6 @@ Let = { "let" ~ Name ~ "=" ~ Expression }
 Assign = { Identifier ~ "=" ~ Expression }
 Return = { "return" ~ Expression }
 
-Block = { "{" ~ Statement* ~ "}" }
 If = { "if" ~ "(" ~ Expression ~ ")" ~ Block ~ ElseIf* ~ Else? }
 ElseIf = { "else" ~ "if" ~ "(" ~ Expression ~ ")" ~ Block }
 Else = { "else" ~ Block }
@@ -39,6 +37,7 @@ Switch = { "switch" ~ "(" ~ Expression ~ ")" ~ "{" ~ (Case | Default)* ~ "}" }
 While = { "while" ~ "(" ~ Expression ~ ")" ~ Block }
 For = { "for" ~ "(" ~ Let ~ ";" ~ Expression ~ ";" ~ Expression ~ ")" ~ Block }
 ForOf = { "for" ~ "(" ~ Name ~ "of" ~ Expression ~ ")" ~ Block }
+ForIn = { "for" ~ "(" ~ Name ~ "in" ~ Expression ~ ")" ~ Block }
 
 NameList = { Name ~ ("," ~ Name)* }
 IdentifierList = { Identifier ~ ("," ~ Identifier)* }
@@ -76,7 +75,9 @@ Function = { "function" ~ Name ~ TemplateDefinition? ~ FunctionDefinition ~ Bloc
 
 Closur = { FunctionDefinition ~ "=>" ~ Block | Statement }
 
-Statement = { (Const | Let | Assign | If | Switch | While | For | ForOf | Function | Call | Return) ~ ";"? }
+Block = { "{" ~ Statement* ~ "}" }
+Statement = { Const | Let | Assign | If | Switch | While | For | ForOf | ForIn | Function | Call | Return | Block }
+
 Import = { "import" ~ String }
 ImportName = { Name ~ ("as" ~ Name)? }
 ImportNameList = { ImportName ~ ("," ~ ImportName)* }

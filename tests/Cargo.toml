@@ -1,0 +1,25 @@
+[package]
+name = "typescript-tests"
+version = "0.0.1"
+edition = "2021"
+authors = ["Void <arne_simon@gmx.de>"]
+description = "A native Typescript parser and JIT runner."
+documentation = "https://docs.rs/typescript-tests"
+repository = "https://github.com/void-dragon/typescript"
+readme = "../README.md"
+keywords = ["typescript", "javascript", "ts", "js", "awesome"]
+categories = ["compilers", "parsing"]
+license = "MIT"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[profile.release]
+strip = true
+lto = true
+
+[features]
+default = []
+
+[dependencies]
+typescript-ast = {path = "../ast", version = "0.0.1"}
+typescript-jit = {path = "../jit", version = "0.0.1"}
+log = {version = "0.4", features = ["std"]}

@@ -1,5 +1,6 @@
 use std::{
     collections::HashMap,
+    error::Error,
     ffi::{c_void, CStr, CString},
     fs::File,
     io::Write,
@@ -26,6 +27,8 @@ use llvm_sys::{
 };
 
 use typescript_ast::ast;
+
+use crate::error::JitError;
 
 use super::{callbacks, context::Context, value::Value};
 
@@ -70,7 +73,7 @@ impl Module {
         self.id.clone()
     }
 
-    pub fn from_ast(id: Vec<u8>, m: ast::Module, save_ir: Option<String>) -> Module {
+    pub fn from_ast(id: Vec<u8>, m: ast::Module, save_ir: Option<String>) -> Result<Module, Box<dyn Error>> {
         let id_hex = hex::encode(&id);
         let mut module = Self {
             id,
@@ -90,9 +93,6 @@ impl Module {
         };
 
         unsafe {
-            module.ee = std::mem::uninitialized();
-            let mut out = std::mem::zeroed();
-
             module.context = LLVMContextCreate();
             module.module = LLVMModuleCreateWithNameInContext(
                 id_hex.as_bytes().as_ptr() as *const _,
@@ -180,12 +180,14 @@ impl Module {
 
             {
                 let mut data = 0u8 as _;
-                let ret = LLVMVerifyModule(module.module, LLVMVerifierFailureAction::LLVMPrintMessageAction, &mut data);
+                let ret = LLVMVerifyModule(module.module, LLVMVerifierFailureAction::LLVMReturnStatusAction, &mut data);
 
                 if ret != 0 {
                     let cast = CStr::from_ptr(data);
-                    println!("verifiy: {:?}", cast);
+                    let error = JitError::ModuleVerify(cast.to_str().unwrap().into());
                     LLVMDisposeMessage(data);
+                    LLVMDisposeBuilder(module.builder);
+                    return Err(error.into())
                 }
             }
             LLVMDisposeBuilder(module.builder);
@@ -198,9 +200,12 @@ impl Module {
                 dump.write(cast.to_bytes()).unwrap();
             }
 
+            module.ee = std::mem::zeroed();
+            let mut out = std::mem::zeroed();
+
             LLVMCreateExecutionEngineForModule(&mut module.ee, module.module, &mut out);
 
-            module
+            Ok(module)
         }
     }
 
@@ -649,9 +654,9 @@ impl Module {
                         self.builder,
                         eq.ft,
                         eq.func,
-                        args.as_ptr() as *mut LLVMValueRef,
-                        args.len() as u32,
-                        b"__eq\0".as_ptr() as *const _,
+                        args.as_ptr() as _,
+                        args.len() as _,
+                        b"__eq\0".as_ptr() as _,
                     )
                 };
                 let cond = {
@@ -661,9 +666,9 @@ impl Module {
                         self.builder,
                         to_bool.ft,
                         to_bool.func,
-                        args.as_ptr() as *mut LLVMValueRef,
-                        args.len() as u32,
-                        b"__to_bool\0".as_ptr() as *const _,
+                        args.as_ptr() as _,
+                        args.len() as _,
+                        b"__to_bool\0".as_ptr() as _,
                     )
                 };
 
@@ -740,10 +745,19 @@ impl Module {
             }
 
             if last == 0 as _ {
-                LLVMBuildRetVoid(self.builder);
-            } else {
-                LLVMBuildRet(self.builder, last);
+                let null = self.extern_functions.get("__global_null").unwrap();
+                let args: Vec<LLVMValueRef> = Vec::new();
+                last = LLVMBuildCall2(
+                    self.builder,
+                    null.ft,
+                    null.func,
+                    args.as_ptr() as *mut LLVMValueRef,
+                    args.len() as u32,
+                    b"__null\0".as_ptr() as *const _,
+                );
             }
+
+            LLVMBuildRet(self.builder, last);
 
             self.current_block = old_block;
             LLVMPositionBuilderAtEnd(self.builder, self.current_block);
@@ -822,7 +836,7 @@ impl Module {
     pub fn run(&self) {
         unsafe {
             #[cfg(feature = "trace")]
-            log::debug!(target: "typescript.jit", "add gloabl mapping");
+            log::debug!("add gloabl mapping");
 
             let start = SystemTime::now();
             let ns_ptr = Arc::into_raw(self.namespace.clone());
@@ -837,19 +851,20 @@ impl Module {
                 // );
             }
             let dur = start.elapsed().unwrap();
-            log::info!(target: "typescript.module", "create mapping: {}.{:06}", dur.as_secs(), dur.subsec_micros());
+            log::info!("create mapping: {}.{:06}", dur.as_secs(), dur.subsec_micros());
 
             let start = SystemTime::now();
+            // JIT compiliation is defered until needed. So the real compilation starts here.
             let addr = LLVMGetFunctionAddress(self.ee, b"__main__\0".as_ptr() as *const _);
             let dur = start.elapsed().unwrap();
-            log::info!(target: "typescript.module", "get addr: {}.{:06}", dur.as_secs(), dur.subsec_micros());
+            log::info!("compilation: {}.{:06}", dur.as_secs(), dur.subsec_micros());
 
             let start = SystemTime::now();
             let f: extern "C" fn() = std::mem::transmute(addr);
 
             f();
             let dur = start.elapsed().unwrap();
-            log::info!(target: "typescript.module", "main: {}.{:06}", dur.as_secs(), dur.subsec_micros());
+            log::info!("main: {}.{:06}", dur.as_secs(), dur.subsec_micros());
         }
     }
 }
@@ -857,7 +872,9 @@ impl Module {
 impl Drop for Module {
     fn drop(&mut self) {
         unsafe {
-            LLVMDisposeExecutionEngine(self.ee);
+            if self.ee != 0 as _ {
+                LLVMDisposeExecutionEngine(self.ee);
+            }
             LLVMContextDispose(self.context);
         }
     }

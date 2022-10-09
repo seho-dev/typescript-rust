@@ -8,7 +8,7 @@ use crate::ast::{
     statement::Statement,
     tstype::TsType,
     typedefinition::{TypeBlock, TypeDefinition},
-    value::Value, switch::{Switch, Case}, ifelse::{IfElse, ElseIf},
+    value::Value, switch::{Switch, Case}, ifelse::{IfElse, ElseIf}, repeat::Loop,
 };
 use pest::{iterators::Pair, Parser};
 use pest_derive::Parser;
@@ -28,8 +28,7 @@ fn parse_term(term: Pair<Rule>) -> Value {
                 Value::Undefined
             }
         }
-        Rule::False => Value::Boolean(false),
-        Rule::True => Value::Boolean(true),
+        Rule::Boolean => Value::Boolean(inner.as_str() == "true"),
         Rule::Identifier => {
             let names: Vec<String> = inner.as_str().split(".").map(|n| n.to_string()).collect();
 
@@ -236,60 +235,16 @@ fn parse_statement(stmnt: Pair<Rule>) -> Option<Statement> {
             })
         }
         Rule::If => {
-            let mut inner = stmnt.into_inner();
-            let expr = inner.next().unwrap();
-            let block = inner.next().unwrap();
-
-            let mut block_stmnts = Vec::new();
-            for stmnt in block.into_inner() {
-                if let Some(s) = parse_statement(stmnt) {
-                    block_stmnts.push(s);
-                }
-            }
-
-            let mut else_block = Vec::new();
-            let mut elseifs = Vec::new();
-            for next in inner {
-                match next.as_rule() {
-                    Rule::ElseIf => {
-                        let mut inner = next.into_inner();
-                        let expr = inner.next().unwrap();
-                        let block = inner.next().unwrap();
-
-                        let mut block_statements = Vec::new();
-                        for stmnt in block.into_inner() {
-                            if let Some(s) = parse_statement(stmnt) {
-                                block_statements.push(s);
-                            }
-                        }
-
-                        elseifs.push(ElseIf {
-                            expr: parse_value(expr),
-                            block: block_statements,
-                        });
-                    }
-                    Rule::Else => {
-                        let block = next.into_inner().next().unwrap();
-                        for stmnt in block.into_inner() {
-                            if let Some(s) = parse_statement(stmnt) {
-                                else_block.push(s);
-                            }
-                        }
-                    }
-                    _ => {}
-                }
-            }
-
-            Some(Statement::If(IfElse {
-                expr: parse_value(expr),
-                block: block_stmnts,
-                elseifs,
-                els: else_block,
-            }))
+            let _if = parse_if(stmnt);
+            Some(Statement::If(_if))
         }
         Rule::Switch => {
             let switch = parse_switch(stmnt);
             Some(Statement::Switch(switch))
+        }
+        Rule::For => {
+            let repeat = parse_for(stmnt);
+            Some(Statement::Loop(repeat))
         }
         Rule::Function => {
             let func = parse_function(stmnt);
@@ -300,6 +255,59 @@ fn parse_statement(stmnt: Pair<Rule>) -> Option<Statement> {
             Some(Statement::Return(parse_value(stmnt.into_inner().next().unwrap())))
         }
         _ => None,
+    }
+}
+
+fn parse_if(stmnt: Pair<Rule>) -> IfElse {
+    let mut inner = stmnt.into_inner();
+    let expr = inner.next().unwrap();
+    let block = inner.next().unwrap();
+
+    let mut block_stmnts = Vec::new();
+    for stmnt in block.into_inner() {
+        if let Some(s) = parse_statement(stmnt) {
+            block_stmnts.push(s);
+        }
+    }
+
+    let mut else_block = Vec::new();
+    let mut elseifs = Vec::new();
+    for next in inner {
+        match next.as_rule() {
+            Rule::ElseIf => {
+                let mut inner = next.into_inner();
+                let expr = inner.next().unwrap();
+                let block = inner.next().unwrap();
+
+                let mut block_statements = Vec::new();
+                for stmnt in block.into_inner() {
+                    if let Some(s) = parse_statement(stmnt) {
+                        block_statements.push(s);
+                    }
+                }
+
+                elseifs.push(ElseIf {
+                    expr: parse_value(expr),
+                    block: block_statements,
+                });
+            }
+            Rule::Else => {
+                let block = next.into_inner().next().unwrap();
+                for stmnt in block.into_inner() {
+                    if let Some(s) = parse_statement(stmnt) {
+                        else_block.push(s);
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    IfElse {
+        expr: parse_value(expr),
+        block: block_stmnts,
+        elseifs,
+        els: else_block,
     }
 }
 
@@ -364,6 +372,10 @@ fn parse_switch(stmnt: Pair<Rule>) -> Switch {
         branches,
         default,
     }
+}
+
+fn parse_for(stmnt: Pair<Rule>) -> Loop {
+    Loop::ForOf
 }
 
 fn parse_interface(stmnt: Pair<Rule>) -> Statement {

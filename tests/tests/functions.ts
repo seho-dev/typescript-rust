@@ -1,0 +1,4 @@
+
+function normalOne(one: number) {
+
+}
