@@ -14,7 +14,7 @@ use llvm_sys::{
         LLVMBuildRet, LLVMBuildRetVoid, LLVMConstReal, LLVMContextCreate, LLVMContextDispose,
         LLVMCreateBuilderInContext, LLVMDisposeBuilder, LLVMDoubleTypeInContext, LLVMFunctionType,
         LLVMInt64TypeInContext, LLVMInt8TypeInContext, LLVMModuleCreateWithNameInContext,
-        LLVMPointerType, LLVMPositionBuilderAtEnd, LLVMPrintModuleToString, LLVMVoidTypeInContext, LLVMBuildCondBr, LLVMAppendBasicBlock, LLVMBuildBr, LLVMBuildPhi, LLVMBuildICmp, LLVMConstInt, LLVMAddIncoming, LLVMGetInsertBlock, LLVMDisposeMessage,
+        LLVMPointerType, LLVMPositionBuilderAtEnd, LLVMPrintModuleToString, LLVMVoidTypeInContext, LLVMBuildCondBr, LLVMAppendBasicBlock, LLVMBuildBr, LLVMBuildPhi, LLVMBuildICmp, LLVMConstInt, LLVMAddIncoming, LLVMGetInsertBlock, LLVMDisposeMessage, LLVMVoidType,
     },
     execution_engine::{
         LLVMAddGlobalMapping, LLVMCreateExecutionEngineForModule, LLVMDisposeExecutionEngine,
@@ -502,10 +502,19 @@ impl Module {
 
     fn build_if(&mut self, stmnt: &ast::ifelse::IfElse) -> LLVMValueRef {
         unsafe {
+            let ifblk = LLVMAppendBasicBlock(self.current_function, b"if\0".as_ptr() as _);
+
+            LLVMBuildBr(self.builder, ifblk);
+
+            self.current_block = ifblk;
+            LLVMPositionBuilderAtEnd(self.builder, self.current_block);
+
             let cond = self.build_cmp(stmnt.expr.clone());
 
             let _then = LLVMAppendBasicBlock(self.current_function, b"then\0".as_ptr() as _);
             let mut elseifs = Vec::new();
+            // let mut incoming_value = Vec::new();
+            // let mut incoming_block = Vec::new();
 
             for i in 0..stmnt.elseifs.len() {
                 elseifs.push((
@@ -515,20 +524,20 @@ impl Module {
             }
 
             let _else = LLVMAppendBasicBlock(self.current_function, b"else\0".as_ptr() as _);
-            let _merge = LLVMAppendBasicBlock(self.current_function, b"merge\0".as_ptr() as _);
+            let _merge = LLVMAppendBasicBlock(self.current_function, b"if_end\0".as_ptr() as _);
 
-            let _if = LLVMBuildCondBr(self.builder, cond, _then, _else);
+            let _if = LLVMBuildCondBr(self.builder, cond, _then, if elseifs.len() > 1 {elseifs[0].0} else { _else });
 
             let old_block = self.current_block;
             self.current_block = _then;
             LLVMPositionBuilderAtEnd(self.builder, self.current_block);
 
-            for stmnt in &stmnt.block {
-                self.consume_statement(stmnt);
-            }
+            let if_v = self.consume_statements(&stmnt.block);
 
             LLVMBuildBr(self.builder, _merge);
             // let mut _then = LLVMGetInsertBlock(self.builder);
+            // incoming_value.push(if_v);
+            // incoming_block.push(_then);
 
             for i in 0..stmnt.elseifs.len() {
                 let elseif = &stmnt.elseifs[i];
@@ -537,7 +546,7 @@ impl Module {
                     _else
                 }
                 else {
-                    elseifs[i + 1].1
+                    elseifs[i + 1].0
                 };
                 self.current_block = check;
                 LLVMPositionBuilderAtEnd(self.builder, self.current_block);
@@ -548,18 +557,133 @@ impl Module {
                 self.current_block = body;
                 LLVMPositionBuilderAtEnd(self.builder, self.current_block);
 
-                for stmnt in &elseif.block {
+                let elseif_v = self.consume_statements(&elseif.block);
+
+                LLVMBuildBr(self.builder, _merge);
+                // let mut _then = LLVMGetInsertBlock(self.builder);
+                // incoming_value.push(elseif_v);
+                // incoming_block.push(_then);
+            }
+
+            self.current_block = _else;
+            LLVMPositionBuilderAtEnd(self.builder, self.current_block);
+
+            let else_v = self.consume_statements(&stmnt.els);
+
+            LLVMBuildBr(self.builder, _merge);
+            // let mut _then = LLVMGetInsertBlock(self.builder);
+            // incoming_value.push(else_v);
+            // incoming_block.push(_then);
+
+            self.current_block = _merge;
+            LLVMPositionBuilderAtEnd(self.builder, _merge);
+
+            // let phi = LLVMBuildPhi(self.builder, LLVMVoidType(), b"phi\0".as_ptr() as _);
+            // LLVMAddIncoming(
+            //     phi, 
+            //     incoming_value.as_mut_ptr(), 
+            //     incoming_block.as_mut_ptr(), 
+            //     incoming_block.len() as _
+            // );
+
+            // self.current_block = old_block;
+            // LLVMPositionBuilderAtEnd(self.builder, self.current_block);
+
+            // phi
+            0 as _
+        }
+    }
+
+    fn build_switch(&mut self, switch: &ast::switch::Switch) -> LLVMValueRef {
+        unsafe {
+            let swblk = LLVMAppendBasicBlock(self.current_function, b"switch\0".as_ptr() as _);
+
+            LLVMBuildBr(self.builder, swblk);
+
+            self.current_block = swblk;
+            LLVMPositionBuilderAtEnd(self.builder, self.current_block);
+
+            let exp = self.build_value(switch.value.clone());
+
+            let mut cases = Vec::new();
+
+            for i in 0..switch.branches.len() {
+                cases.push((
+                    LLVMAppendBasicBlock(self.current_function, b"case_check\0".as_ptr() as _),
+                    LLVMAppendBasicBlock(self.current_function, b"case\0".as_ptr() as _),
+                ));
+            }
+
+            LLVMBuildBr(self.builder, cases[0].0);
+
+            let default = LLVMAppendBasicBlock(self.current_function, b"default\0".as_ptr() as _);
+            let _merge = LLVMAppendBasicBlock(self.current_function, b"switch_end\0".as_ptr() as _);
+
+            for i in 0..switch.branches.len() {
+                let case = &switch.branches[i];
+                let (check, body) = cases[i];
+                let next_block = if i == switch.branches.len() - 1 {
+                    default
+                }
+                else {
+                    cases[i + 1].0
+                };
+                self.current_block = check;
+                LLVMPositionBuilderAtEnd(self.builder, self.current_block);
+
+                let cond = self.build_value(case.expr.clone());
+                let eq = {
+                    let eq = self.extern_functions.get("__eq").unwrap();
+                    let args: Vec<LLVMValueRef> = vec![exp, cond];
+                    LLVMBuildCall2(
+                        self.builder,
+                        eq.ft,
+                        eq.func,
+                        args.as_ptr() as *mut LLVMValueRef,
+                        args.len() as u32,
+                        b"__eq\0".as_ptr() as *const _,
+                    )
+                };
+                let cond = {
+                    let to_bool = self.extern_functions.get("__to_bool").unwrap();
+                    let args: Vec<LLVMValueRef> = vec![eq];
+                    LLVMBuildCall2(
+                        self.builder,
+                        to_bool.ft,
+                        to_bool.func,
+                        args.as_ptr() as *mut LLVMValueRef,
+                        args.len() as u32,
+                        b"__to_bool\0".as_ptr() as *const _,
+                    )
+                };
+
+                let one = LLVMConstInt(LLVMInt8TypeInContext(self.context), 1, 0);
+                let cond = LLVMBuildICmp(
+                    self.builder, 
+                    LLVMIntPredicate::LLVMIntEQ, 
+                    cond, 
+                    one, 
+                    b"cmp\0".as_ptr() as _
+                );
+                LLVMBuildCondBr(self.builder, cond, body, next_block);
+
+                self.current_block = body;
+                LLVMPositionBuilderAtEnd(self.builder, self.current_block);
+
+                for stmnt in &case.block {
                     self.consume_statement(stmnt);
                 }
 
                 LLVMBuildBr(self.builder, _merge);
             }
 
-            self.current_block = _else;
+            self.current_block = default;
             LLVMPositionBuilderAtEnd(self.builder, self.current_block);
 
-            for stmnt in &stmnt.els {
-                self.consume_statement(stmnt);
+            if let Some(default) = &switch.default {
+                for stmnt in default {
+                    self.consume_statement(stmnt);
+                }
             }
 
             LLVMBuildBr(self.builder, _merge);
@@ -567,12 +691,6 @@ impl Module {
 
             self.current_block = _merge;
             LLVMPositionBuilderAtEnd(self.builder, _merge);
-            // let phi = LLVMBuildPhi(self.builder, self.p64t, b"phi\0".as_ptr() as _);
-            // LLVMAddIncoming(phi, &mut if_v, &mut _then, 1);
-            // LLVMAddIncoming(phi, &mut else_v, &mut _else, 1);
-
-            // self.current_block = old_block;
-            // LLVMPositionBuilderAtEnd(self.builder, self.current_block);
 
             0 as _
         }
@@ -645,8 +763,19 @@ impl Module {
             ast::statement::Statement::Function(func) => self.build_function(func),
             ast::statement::Statement::Return(val) => self.build_value(val.clone()),
             ast::statement::Statement::If(ifelse) => self.build_if(ifelse),
+            ast::statement::Statement::Switch(switch) => self.build_switch(switch),
             _ => 0 as _,
         }
+    }
+
+    fn consume_statements(&mut self, block: &Vec<ast::statement::Statement>) -> LLVMValueRef {
+        let mut ret = 0 as _;
+
+        for stmnt in block {
+            ret = self.consume_statement(stmnt);
+        }
+
+        ret
     }
 
     fn consume(&mut self, module: &ast::Module) {

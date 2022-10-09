@@ -1,6 +1,5 @@
 import "main.js"
 import { stan, stoo as superStoo } from "./stanFactory"
-// import { print } from "./mymodule"
 
 const an = 0
 let bu = 10 + 8
