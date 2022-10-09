@@ -204,7 +204,7 @@ impl Module {
         }
     }
 
-    fn build_access_array(&self, parts: &Vec<LLVMValueRef>) -> LLVMValueRef {
+    fn build_array(&self, parts: &Vec<LLVMValueRef>) -> LLVMValueRef {
         let an_ref = unsafe {
             let an = self.extern_functions.get("__array_new").unwrap();
 
@@ -410,8 +410,18 @@ impl Module {
                 }
                 ast::value::Value::Identifier(n) => {
                     let parts = n.iter().map(|s| self.build_string(s)).collect();
-                    let access = self.build_access_array(&parts);
+                    let access = self.build_array(&parts);
                     self.build_global_get(access)
+                }
+                ast::value::Value::Array(a) => {
+                    let mut values = Vec::new();
+
+                    for p in a {
+                        let p = self.build_value(p.clone());
+                        values.push(p);
+                    }
+
+                    self.build_array(&values)
                 }
                 ast::value::Value::Call { identifier, args } => {
                     if identifier.len() == 1 {
@@ -829,7 +839,10 @@ impl Module {
             let dur = start.elapsed().unwrap();
             log::info!(target: "typescript.module", "create mapping: {}.{:06}", dur.as_secs(), dur.subsec_micros());
 
+            let start = SystemTime::now();
             let addr = LLVMGetFunctionAddress(self.ee, b"__main__\0".as_ptr() as *const _);
+            let dur = start.elapsed().unwrap();
+            log::info!(target: "typescript.module", "get addr: {}.{:06}", dur.as_secs(), dur.subsec_micros());
 
             let start = SystemTime::now();
             let f: extern "C" fn() = std::mem::transmute(addr);

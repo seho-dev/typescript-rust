@@ -17,6 +17,12 @@ else {
     bu = 1
 }
 
+print([1, 2, 3])
+
+for(let i = 0; i < 10; i++) {
+    print(i)
+}
+
 switch ("hello") {
     case "hello":
         print("yes switch works")

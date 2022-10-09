@@ -39,6 +39,15 @@ fn parse_term(term: Pair<Rule>) -> Value {
             let data = inner.as_str();
             Value::String(data[1..data.len() - 1].into())
         }
+        Rule::Array => {
+            let mut array = Vec::new();
+
+            for stmnt in inner.into_inner() {
+                array.push(parse_value(stmnt));
+            }
+
+            Value::Array(array)
+        }
         Rule::Call => {
             parse_call(inner)
         }

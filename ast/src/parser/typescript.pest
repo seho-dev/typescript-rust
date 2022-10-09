@@ -6,15 +6,21 @@ True = { "true" }
 False = { "false" }
 Null = { "null" }
 Undefined = { "undefined" }
+Array = { "[" ~ Expression? ~ ("," ~ Expression)* ~ ","? ~ "]" }
 Operand = @{ "+" | "-" | "*" | "/" | "%" | "<" | ">" | "<=" | ">=" | "&&" | "||" | "==" | "!="}
-Term = { Number | True | False | String | Call | Closur | Identifier | "(" ~ Expression ~ ")" }
+Term = { Number | True | False | String | Array | Call | Closur | Identifier | "(" ~ Expression ~ ")" }
+PrefixTerm = { ("++" | "--") ~ Term }
+PostTerm = { Term ~ ("++" | "--") }
 Expression = {
     Term ~ Operand ~ Term
+    | PrefixTerm
+    | PostTerm
     | Term
 }
 
-CallList = { Expression ~ ("," ~ Expression)* }
+CallList = { Expression ~ ("," ~ Expression)* ~ ","? }
 Call = { Identifier ~ "(" ~ CallList ~ ")" }
+
 Const = { "const" ~ Name ~ "=" ~ Expression }
 Let = { "let" ~ Name ~ "=" ~ Expression }
 Assign = { Identifier ~ "=" ~ Expression }
@@ -29,6 +35,10 @@ Break = { "break" }
 Case = { "case" ~ Term ~ ":" ~ Statement* ~ Break? }
 Default = { "default" ~ ":" ~ Statement* ~ Break? }
 Switch = { "switch" ~ "(" ~ Expression ~ ")" ~ "{" ~ (Case | Default)* ~ "}" }
+
+While = { "while" ~ "(" ~ Expression ~ ")" ~ Block }
+For = { "for" ~ "(" ~ Let ~ ";" ~ Expression ~ ";" ~ Expression ~ ")" ~ Block }
+ForOf = { "for" ~ "(" ~ Name ~ "of" ~ Expression ~ ")" ~ Block }
 
 NameList = { Name ~ ("," ~ Name)* }
 IdentifierList = { Identifier ~ ("," ~ Identifier)* }
@@ -66,7 +76,7 @@ Function = { "function" ~ Name ~ TemplateDefinition? ~ FunctionDefinition ~ Bloc
 
 Closur = { FunctionDefinition ~ "=>" ~ Block | Statement }
 
-Statement = { (Const | Let | Assign | If | Switch | Function | Call | Return) ~ ";"? }
+Statement = { (Const | Let | Assign | If | Switch | While | For | ForOf | Function | Call | Return) ~ ";"? }
 Import = { "import" ~ String }
 ImportName = { Name ~ ("as" ~ Name)? }
 ImportNameList = { ImportName ~ ("," ~ ImportName)* }

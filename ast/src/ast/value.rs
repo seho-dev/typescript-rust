@@ -9,6 +9,7 @@ pub enum Value {
     String(String),
     Identifier(Vec<String>),
     Boolean(bool),
+    Array(Vec<Arc<Value>>),
     Call{identifier: Vec<String>, args: Vec<Arc<Value>>},
     Null,
     Undefined,
