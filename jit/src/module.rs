@@ -242,7 +242,7 @@ impl Module {
         an_ref
     }
 
-    fn build_global_get(&self, name: LLVMValueRef) -> LLVMValueRef {
+    fn build_global_get(&self, name: LLVMValueRef, cleanup: bool) -> LLVMValueRef {
         let get_global = self.extern_functions.get("__global_get").unwrap();
         let value_delete = self.extern_functions.get("__value_delete").unwrap();
         let args = vec![self.namespace_ptr, name];
@@ -258,20 +258,22 @@ impl Module {
                 b"global_get\0".as_ptr() as *const _,
             );
 
-            LLVMBuildCall2(
-                self.builder,
-                value_delete.ft,
-                value_delete.func,
-                delete_args.as_ptr() as *mut LLVMValueRef,
-                delete_args.len() as u32,
-                b"__value_delete\0".as_ptr() as *const _,
-            );
+            if cleanup {
+                LLVMBuildCall2(
+                    self.builder,
+                    value_delete.ft,
+                    value_delete.func,
+                    delete_args.as_ptr() as *mut LLVMValueRef,
+                    delete_args.len() as u32,
+                    b"__value_delete\0".as_ptr() as *const _,
+                );
+            }
 
             func
         }
     }
 
-    fn build_global_set(&self, name: LLVMValueRef, value: LLVMValueRef) -> LLVMValueRef {
+    fn build_global_set(&self, name: LLVMValueRef, value: LLVMValueRef, cleanup: bool) -> LLVMValueRef {
         let global_set = self.extern_functions.get("__global_set").unwrap();
         let value_delete = self.extern_functions.get("__value_delete").unwrap();
         let args = vec![self.namespace_ptr, name, value];
@@ -287,14 +289,16 @@ impl Module {
                 b"__global_set\0".as_ptr() as *const _,
             );
 
-            LLVMBuildCall2(
-                self.builder,
-                value_delete.ft,
-                value_delete.func,
-                delete_args.as_ptr() as *mut LLVMValueRef,
-                delete_args.len() as u32,
-                b"__value_delete\0".as_ptr() as *const _,
-            );
+            if cleanup {
+                LLVMBuildCall2(
+                    self.builder,
+                    value_delete.ft,
+                    value_delete.func,
+                    delete_args.as_ptr() as *mut LLVMValueRef,
+                    delete_args.len() as u32,
+                    b"__value_delete\0".as_ptr() as *const _,
+                );
+            }
 
             ret
         }
@@ -416,7 +420,7 @@ impl Module {
                 ast::value::Value::Identifier(n) => {
                     let parts = n.iter().map(|s| self.build_string(s)).collect();
                     let access = self.build_array(&parts);
-                    self.build_global_get(access)
+                    self.build_global_get(access, true)
                 }
                 ast::value::Value::Array(a) => {
                     let mut values = Vec::new();
@@ -771,17 +775,19 @@ impl Module {
             ast::statement::Statement::Const { name, value } => {
                 let name_ref = self.build_string(name);
                 let value_ref = self.build_value(value.clone());
-                self.build_global_set(name_ref, value_ref)
+                self.build_global_set(name_ref, value_ref, true)
             }
             ast::statement::Statement::Let { name, value } => {
                 let name_ref = self.build_string(name);
                 let value_ref = self.build_value(value.clone());
-                self.build_global_set(name_ref, value_ref)
+                self.build_global_set(name_ref, value_ref, true)
             }
-            ast::statement::Statement::Assign { identifier, value } => {
+            ast::statement::Statement::Assign { identifier, op, value } => {
                 let name_ref = self.build_string(identifier);
                 let value_ref = self.build_value(value.clone());
-                self.build_global_set(name_ref, value_ref)
+                let old_ref = self.build_global_get(name_ref, false);
+                let new_ref = self.build_generic_op(&op.into(), old_ref, value_ref);
+                self.build_global_set(name_ref, new_ref, true)
             }
             ast::statement::Statement::Call(call) => self.build_value(call.clone()),
             ast::statement::Statement::Function(func) => self.build_function(func),

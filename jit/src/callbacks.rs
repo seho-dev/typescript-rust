@@ -10,14 +10,23 @@ pub unsafe extern "C" fn global_get(ctx: *mut Context, name: *const Value) -> *c
     #[cfg(feature = "trace")]
     log::trace!(target: "typescript.callback", "!! get {:?} !!", *name);
 
-    if let Value::Array(ref a) = *name {
-        if let Value::Str(ref s) = *a[0] {
-            let val = (*ctx).variables.get(s);
-
-            if let Some(val) = val {
-                return Arc::into_raw(val.clone());
+    let val = match *name {
+        Value::Str(ref s) => {
+            (*ctx).variables.get(s)
+        }
+        Value::Array(ref a) => {
+            if let Value::Str(ref s) = *a[0] {
+                (*ctx).variables.get(s)
+            }
+            else {
+                None
             }
         }
+        _ => None,
+    };
+
+    if let Some(val) = val {
+        return Arc::into_raw(val.clone());
     }
 
     0 as _
@@ -48,18 +57,24 @@ pub unsafe extern "C" fn global_set(
     #[cfg(feature = "trace")]
     log::trace!(target: "typescript.callback", "!! set {:?} = {:?} !!", *name, *val);
 
-    // if let Value::Array(ref a) = *name {
-    //     log::trace!(target: "typescript.callback", "a = {:?}", a);
-
-        if let Value::Str(ref s) = *name {
+    match *name {
+        Value::Str(ref s) => {
             (*ctx).variables.insert(
                 s.clone(),
                 Arc::from_raw(val),
             );
         }
-    // }
+        Value::Array(ref a) => {
+            if let Value::Str(ref s) = *a[0] {
+                (*ctx).variables.insert(
+                    s.clone(),
+                    Arc::from_raw(val),
+                );
+            }
+        }
+        _ => {}
+    }
 
-    // &Value::Null as *const _
     0 as _
 }
 
@@ -72,7 +87,7 @@ pub unsafe extern "C" fn to_bool(val: *const Value) -> i8 {
 
 pub unsafe extern "C" fn add(left: *const Value, right: *const Value) -> *const Value {
     #[cfg(feature = "trace")]
-    log::trace!(target: "typescript.callback", "!! add !!");
+    log::trace!(target: "typescript.callback", "!! add {:?} {:?} !!", *left, *right);
 
     let left_rc = Arc::from_raw(left);
     let right_rc = Arc::from_raw(right);

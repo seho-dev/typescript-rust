@@ -7,6 +7,7 @@ Undefined = { "undefined" }
 Null = { "null" }
 Array = { "[" ~ Expression? ~ ("," ~ Expression)* ~ ","? ~ "]" }
 Operand = @{ "+" | "-" | "*" | "/" | "%" | "<" | ">" | "<=" | ">=" | "&&" | "||" | "==" | "!="}
+OpAssign = @{ "=" | "+=" | "-=" | "*=" | "/=" | "%=" }
 Term = { Number | Boolean | Null | Undefined | String | Array | Call | Closur | Identifier | "(" ~ Expression ~ ")" }
 PrefixTerm = { ("++" | "--") ~ Term }
 PostTerm = { Term ~ ("++" | "--") }
@@ -20,9 +21,10 @@ Expression = {
 CallList = { Expression ~ ("," ~ Expression)* ~ ","? }
 Call = { Identifier ~ "(" ~ CallList ~ ")" }
 
-Const = { "const" ~ Name ~ "=" ~ Expression }
-Let = { "let" ~ Name ~ "=" ~ Expression }
-Assign = { Identifier ~ "=" ~ Expression }
+AssignDefinition = { Name ~ (":" ~ TypeIdentifiers)? }
+Const = { "const" ~ AssignDefinition ~ "=" ~ Expression }
+Let = { "let" ~ AssignDefinition ~ "=" ~ Expression }
+Assign = { Identifier ~ OpAssign ~ Expression }
 Return = { "return" ~ Expression }
 
 If = { "if" ~ "(" ~ Expression ~ ")" ~ Block ~ ElseIf* ~ Else? }

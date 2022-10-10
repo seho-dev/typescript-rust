@@ -13,14 +13,13 @@ use sha2::Digest;
 
 use typescript_ast::parser;
 
-use self::module::Module;
-
 mod callbacks;
 mod context;
 mod error;
 mod module;
 mod value;
 
+pub use module::Module;
 pub use value::Value;
 
 fn source_hash(source: &str) -> Vec<u8> {

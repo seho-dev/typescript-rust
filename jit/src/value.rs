@@ -25,6 +25,6 @@ impl Value {
 impl Drop for Value {
     fn drop(&mut self) {
         #[cfg(feature = "trace")]
-        log::debug!(target: "typescript.value", "value dropped: {:?}", self);
+        log::trace!(target: "typescript.value", "value dropped: {:?}", self);
     }
 }

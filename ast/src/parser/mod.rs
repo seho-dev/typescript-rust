@@ -200,13 +200,26 @@ fn parse_call(stmnt: Pair<Rule>) -> Value {
     Value::Call { identifier, args }
 }
 
+fn parse_assign_definition(stmnt: Pair<Rule>) -> (String, Vec<TsType>) {
+    let mut inner = stmnt.into_inner();
+    let name = inner.next().unwrap().as_str().to_string();
+    let kinds = if let Some(inn) = inner.next() {
+        parse_param_kind(inn)
+    }
+    else {
+        Vec::new()
+    };
+
+    (name, kinds)
+}
+
 fn parse_statement(stmnt: Pair<Rule>) -> Option<Statement> {
     let stmnt = stmnt.into_inner().next().unwrap();
 
     match stmnt.as_rule() {
         Rule::Const => {
             let mut inner = stmnt.into_inner();
-            let name = inner.next().unwrap();
+            let (name, _kinds) = parse_assign_definition(inner.next().unwrap());
             let expr = inner.next().unwrap();
 
             Some(Statement::Const {
@@ -216,7 +229,7 @@ fn parse_statement(stmnt: Pair<Rule>) -> Option<Statement> {
         }
         Rule::Let => {
             let mut inner = stmnt.into_inner();
-            let name = inner.next().unwrap();
+            let (name, _kinds) = parse_assign_definition(inner.next().unwrap());
             let expr = inner.next().unwrap();
 
             Some(Statement::Let {
@@ -227,10 +240,12 @@ fn parse_statement(stmnt: Pair<Rule>) -> Option<Statement> {
         Rule::Assign => {
             let mut inner = stmnt.into_inner();
             let name = inner.next().unwrap();
+            let op = inner.next().unwrap().as_str().into();
             let expr = inner.next().unwrap();
 
             Some(Statement::Assign {
                 identifier: name.as_str().to_string(),
+                op,
                 value: parse_value(expr),
             })
         }

@@ -36,3 +36,37 @@ impl From<&str> for Operation {
         }
     }
 }
+
+impl From<&AssignOperation> for Operation {
+    fn from(o: &AssignOperation) -> Self {
+        match o {
+            AssignOperation::Add => Self::Add,
+            AssignOperation::Sub => Self::Sub,
+            AssignOperation::Mul => Self::Mul,
+            AssignOperation::Div => Self::Div,
+            AssignOperation::Mod => Self::Mod,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum AssignOperation {
+    Add,
+    Sub,
+    Mul,
+    Div,
+    Mod,
+}
+
+impl From<&str> for AssignOperation {
+    fn from(ch: &str) -> Self {
+        match ch {
+            "+=" => Self::Add,
+            "-=" => Self::Sub,
+            "*=" => Self::Mul,
+            "/=" => Self::Div,
+            "%=" => Self::Mod,
+            _ => Self::Add,
+        }
+    }
+}
