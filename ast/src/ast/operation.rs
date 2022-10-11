@@ -32,6 +32,8 @@ impl From<&str> for Operation {
             ">=" => Self::Gte,
             "==" => Self::Eq,
             "!=" => Self::Ne,
+            "===" => Self::Eq,
+            "!==" => Self::Ne,
             _ => Self::Add,
         }
     }
@@ -45,12 +47,14 @@ impl From<&AssignOperation> for Operation {
             AssignOperation::Mul => Self::Mul,
             AssignOperation::Div => Self::Div,
             AssignOperation::Mod => Self::Mod,
+            AssignOperation::Neutral => Self::Or,
         }
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum AssignOperation {
+    Neutral,
     Add,
     Sub,
     Mul,
@@ -61,12 +65,13 @@ pub enum AssignOperation {
 impl From<&str> for AssignOperation {
     fn from(ch: &str) -> Self {
         match ch {
+            "=" => Self::Neutral,
             "+=" => Self::Add,
             "-=" => Self::Sub,
             "*=" => Self::Mul,
             "/=" => Self::Div,
             "%=" => Self::Mod,
-            _ => Self::Add,
+            _ => Self::Neutral,
         }
     }
 }

@@ -5,11 +5,11 @@ let choice = 0
 switch (val) {
     case "never": 
         choice = 1
-    break
+        break
     case "myval":
         choice = 2
-    break
+        break
     default:
         choice = 3
-    break
+        break
 }

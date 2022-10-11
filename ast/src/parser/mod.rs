@@ -18,41 +18,83 @@ use pest_derive::Parser;
 pub struct TypeScriptParser;
 
 fn parse_term(term: Pair<Rule>) -> Value {
-    let inner = term.into_inner().next().unwrap();
+    match term.as_rule() {
+        Rule::PostTerm => {
+            let mut inner = term.into_inner();
+            let name = inner.next().unwrap();
+            let op = inner.next().unwrap();
 
-    match inner.as_rule() {
-        Rule::Number => {
-            if let Ok(flt) = inner.as_str().parse::<f64>() {
-                Value::Number(flt)
-            } else {
-                Value::Undefined
+            let op = match op.as_rule() {
+                Rule::Inc => crate::ast::operation::AssignOperation::Add,
+                Rule::Dec => crate::ast::operation::AssignOperation::Sub,
+                _ => crate::ast::operation::AssignOperation::Neutral,
+            };
+
+            Value::Assign {
+                identifier: name.as_str().to_string(),
+                op,
+                value: Arc::new(Value::Number(1.0)),
             }
         }
-        Rule::Boolean => Value::Boolean(inner.as_str() == "true"),
-        Rule::Identifier => {
-            let names: Vec<String> = inner.as_str().split(".").map(|n| n.to_string()).collect();
+        Rule::PrefixTerm => {
+            let mut inner = term.into_inner();
+            let op = inner.next().unwrap();
+            let name = inner.next().unwrap();
 
-            Value::Identifier(names)
-        }
-        Rule::String => {
-            let data = inner.as_str();
-            Value::String(data[1..data.len() - 1].into())
-        }
-        Rule::Array => {
-            let mut array = Vec::new();
+            let op = match op.as_rule() {
+                Rule::Inc => crate::ast::operation::AssignOperation::Add,
+                Rule::Dec => crate::ast::operation::AssignOperation::Sub,
+                _ => crate::ast::operation::AssignOperation::Neutral,
+            };
 
-            for stmnt in inner.into_inner() {
-                array.push(parse_value(stmnt));
+            Value::Assign {
+                identifier: name.as_str().to_string(),
+                op,
+                value: Arc::new(Value::Number(1.0)),
             }
-
-            Value::Array(array)
         }
         Rule::Call => {
-            parse_call(inner)
+            parse_call(term)
         }
-        _ => {
-            Value::Undefined
+        Rule::Assign => {
+            parse_assign(term)
         }
+        Rule::CaseTerm | Rule::Term => {
+            let inner = term.into_inner().next().unwrap();
+
+            match inner.as_rule() {
+                Rule::Number => {
+                    if let Ok(flt) = inner.as_str().parse::<f64>() {
+                        Value::Number(flt)
+                    } else {
+                        Value::Undefined
+                    }
+                }
+                Rule::Boolean => Value::Boolean(inner.as_str() == "true"),
+                Rule::Identifier => {
+                    let names: Vec<String> = inner.as_str().split(".").map(|n| n.to_string()).collect();
+
+                    Value::Identifier(names)
+                }
+                Rule::String => {
+                    let data = inner.as_str();
+                    Value::String(data[1..data.len() - 1].into())
+                }
+                Rule::Array => {
+                    let mut array = Vec::new();
+
+                    for stmnt in inner.into_inner() {
+                        array.push(parse_value(stmnt));
+                    }
+
+                    Value::Array(array)
+                }
+                _ => {
+                    Value::Undefined
+                }
+            }
+        }
+        _ => { Value::Undefined }
     }
 }
 
@@ -213,6 +255,30 @@ fn parse_assign_definition(stmnt: Pair<Rule>) -> (String, Vec<TsType>) {
     (name, kinds)
 }
 
+fn parse_let(stmnt: Pair<Rule>) -> Statement {
+    let mut inner = stmnt.into_inner();
+    let (name, _kinds) = parse_assign_definition(inner.next().unwrap());
+    let expr = inner.next().unwrap();
+
+    Statement::Let {
+        name: name.as_str().to_string(),
+        value: parse_value(expr),
+    }
+}
+
+fn parse_assign(stmnt: Pair<Rule>) -> Value {
+    let mut inner = stmnt.into_inner();
+    let name = inner.next().unwrap();
+    let op = inner.next().unwrap().as_str().into();
+    let expr = inner.next().unwrap();
+
+    Value::Assign {
+        identifier: name.as_str().to_string(),
+        op,
+        value: parse_value(expr),
+    }
+}
+
 fn parse_statement(stmnt: Pair<Rule>) -> Option<Statement> {
     let stmnt = stmnt.into_inner().next().unwrap();
 
@@ -228,26 +294,10 @@ fn parse_statement(stmnt: Pair<Rule>) -> Option<Statement> {
             })
         }
         Rule::Let => {
-            let mut inner = stmnt.into_inner();
-            let (name, _kinds) = parse_assign_definition(inner.next().unwrap());
-            let expr = inner.next().unwrap();
-
-            Some(Statement::Let {
-                name: name.as_str().to_string(),
-                value: parse_value(expr),
-            })
+            Some(parse_let(stmnt))
         }
         Rule::Assign => {
-            let mut inner = stmnt.into_inner();
-            let name = inner.next().unwrap();
-            let op = inner.next().unwrap().as_str().into();
-            let expr = inner.next().unwrap();
-
-            Some(Statement::Assign {
-                identifier: name.as_str().to_string(),
-                op,
-                value: parse_value(expr),
-            })
+            Some(Statement::Expression(Arc::new(parse_term(stmnt))))
         }
         Rule::If => {
             let _if = parse_if(stmnt);
@@ -265,7 +315,6 @@ fn parse_statement(stmnt: Pair<Rule>) -> Option<Statement> {
             let func = parse_function(stmnt);
             Some(Statement::Function(func))
         }
-        Rule::Call => Some(Statement::Call(Arc::new(parse_call(stmnt)))),
         Rule::Return => {
             Some(Statement::Return(parse_value(stmnt.into_inner().next().unwrap())))
         }
@@ -390,7 +439,24 @@ fn parse_switch(stmnt: Pair<Rule>) -> Switch {
 }
 
 fn parse_for(stmnt: Pair<Rule>) -> Loop {
-    Loop::ForOf
+    let mut inner = stmnt.into_inner();
+    let init = vec![parse_let(inner.next().unwrap())];
+    let cond = parse_value(inner.next().unwrap());
+    let after = parse_value(inner.next().unwrap());
+    let mut block = Vec::new();
+
+    for st in inner.next().unwrap().into_inner() {
+        if let Some(st) = parse_statement(st) {
+            block.push(st);
+        }
+    }
+
+    Loop::For {
+        init,
+        cond,
+        after,
+        block,
+    }
 }
 
 fn parse_interface(stmnt: Pair<Rule>) -> Statement {

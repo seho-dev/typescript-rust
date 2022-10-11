@@ -1,5 +1,3 @@
-use std::error::Error;
-
 use typescript_jit::{Runtime, Value};
 use typescript_tests::TestLogger;
 

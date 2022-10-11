@@ -2,19 +2,25 @@ Number = @{ (ASCII_DIGIT | "." | "-" | "_")+ }
 Name = @{ ASCII_ALPHA ~ (ASCII_ALPHANUMERIC | "_")* }
 String = @{ "\"" ~ (ASCII_ALPHANUMERIC | "." | " " | "\\" | "/")* ~ "\"" }
 Identifier = @{ Name ~ ("." ~ Name)* }
-Boolean = { "true" | "false" }
-Undefined = { "undefined" }
-Null = { "null" }
+Boolean = @{ "true" | "false" }
+Undefined = @{ "undefined" }
+Null = @{ "null" }
 Array = { "[" ~ Expression? ~ ("," ~ Expression)* ~ ","? ~ "]" }
-Operand = @{ "+" | "-" | "*" | "/" | "%" | "<" | ">" | "<=" | ">=" | "&&" | "||" | "==" | "!="}
+Object = { "{" ~ "}" }
+Operand = @{ "+" | "-" | "*" | "/" | "%" | "<" | ">" | "<=" | ">=" | "&&" | "||" | "==" | "!=" | "===" | "!==" }
 OpAssign = @{ "=" | "+=" | "-=" | "*=" | "/=" | "%=" }
-Term = { Number | Boolean | Null | Undefined | String | Array | Call | Closur | Identifier | "(" ~ Expression ~ ")" }
-PrefixTerm = { ("++" | "--") ~ Term }
-PostTerm = { Term ~ ("++" | "--") }
+Inc = { "++" }
+Dec = { "--" }
+Term = { Number | Boolean | Null | Undefined | String | Array | Identifier | "(" ~ Expression ~ ")" }
+PrefixTerm = { (Inc | Dec) ~ Term }
+PostTerm = { Term ~ (Inc | Dec) }
 Expression = {
-    Term ~ Operand ~ Term
+    Assign
+    | Term ~ Operand ~ Term
     | PrefixTerm
     | PostTerm
+    | Call
+    | Closur 
     | Term
 }
 
@@ -32,14 +38,15 @@ ElseIf = { "else" ~ "if" ~ "(" ~ Expression ~ ")" ~ Block }
 Else = { "else" ~ Block }
 
 Break = { "break" }
-Case = { "case" ~ Term ~ ":" ~ Statement* ~ Break? }
-Default = { "default" ~ ":" ~ Statement* ~ Break? }
+CaseTerm = { Number | String }
+Case = { "case" ~ CaseTerm ~ ":" ~ Statement* }
+Default = { "default" ~ ":" ~ Statement* }
 Switch = { "switch" ~ "(" ~ Expression ~ ")" ~ "{" ~ (Case | Default)* ~ "}" }
 
 While = { "while" ~ "(" ~ Expression ~ ")" ~ Block }
 For = { "for" ~ "(" ~ Let ~ ";" ~ Expression ~ ";" ~ Expression ~ ")" ~ Block }
-ForOf = { "for" ~ "(" ~ Name ~ "of" ~ Expression ~ ")" ~ Block }
-ForIn = { "for" ~ "(" ~ Name ~ "in" ~ Expression ~ ")" ~ Block }
+ForOf = { "for" ~ "(" ~ Let ~ "of" ~ Expression ~ ")" ~ Block }
+ForIn = { "for" ~ "(" ~ Let ~ "in" ~ Expression ~ ")" ~ Block }
 
 NameList = { Name ~ ("," ~ Name)* }
 IdentifierList = { Identifier ~ ("," ~ Identifier)* }
@@ -75,10 +82,10 @@ ReturnType = { ":" ~ TypeIdentifiers }
 FunctionDefinition = { "(" ~ ParamList ~ ")" ~ ReturnType? }
 Function = { "function" ~ Name ~ TemplateDefinition? ~ FunctionDefinition ~ Block }
 
-Closur = { FunctionDefinition ~ "=>" ~ Block | Statement }
+Closur = { FunctionDefinition ~ "=>" ~ Block }
 
 Block = { "{" ~ Statement* ~ "}" }
-Statement = { Const | Let | Assign | If | Switch | While | For | ForOf | ForIn | Function | Call | Return | Block }
+Statement = { ( Let | Const | If | Switch | While | For | ForOf | ForIn | Function | Break | Return | Block | Assign  ) ~ ";"? }
 
 Import = { "import" ~ String }
 ImportName = { Name ~ ("as" ~ Name)? }

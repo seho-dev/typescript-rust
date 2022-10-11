@@ -12,16 +12,16 @@ fn check(module: Arc<Module>, name: &str, goal: f64) -> Result<(), String> {
                         Ok(())
                     }
                     else {
-                        Err(format!("number {} != {}", n, goal))
+                        Err(format!("number in '{}' not as expected {} != {}", name, n, goal))
                     }
                 }
                 _ => {
-                    Err(format!("expected number but got: {:?}", var))
+                    Err(format!("expected number in '{}' but got: {:?}", name, var))
                 }
             }
         }
         None => {
-            Err("expected variable 'c'".into())
+            Err(format!("expected variable '{}'", name))
         }
     }
 }

@@ -11,7 +11,7 @@ pub enum Loop {
     For {
         init: Vec<Statement>,
         cond: Arc<Value>,
-        after: Vec<Statement>,
+        after: Arc<Value>,
         block: Vec<Statement>,
     },
     ForOf,

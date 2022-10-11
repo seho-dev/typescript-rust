@@ -26,7 +26,7 @@ use llvm_sys::{
     }, LLVMBasicBlock, LLVMIntPredicate, analysis::{LLVMVerifyModule, LLVMVerifierFailureAction},
 };
 
-use typescript_ast::ast;
+use typescript_ast::ast::{self, operation::AssignOperation};
 
 use crate::error::JitError;
 
@@ -471,6 +471,19 @@ impl Module {
 
                     0 as _
                 }
+                ast::value::Value::Assign { identifier, op, value } => {
+                    let name_ref = self.build_string(identifier);
+                    let value_ref = self.build_value(value.clone());
+
+                    if *op == AssignOperation::Neutral {
+                        self.build_global_set(name_ref, value_ref, true)
+                    }
+                    else {
+                        let old_ref = self.build_global_get(name_ref, false);
+                        let new_ref = self.build_generic_op(&op.into(), old_ref, value_ref);
+                        self.build_global_set(name_ref, new_ref, true)
+                    }
+                }
                 ast::value::Value::Undefined => {
                     let null = self.extern_functions.get("__global_null").unwrap();
                     let args: Vec<LLVMValueRef> = Vec::new();
@@ -547,7 +560,6 @@ impl Module {
 
             let _if = LLVMBuildCondBr(self.builder, cond, _then, if elseifs.len() > 1 {elseifs[0].0} else { _else });
 
-            let old_block = self.current_block;
             self.current_block = _then;
             LLVMPositionBuilderAtEnd(self.builder, self.current_block);
 
@@ -715,6 +727,52 @@ impl Module {
         }
     }
 
+    fn build_loop(&mut self, stmnt: &ast::repeat::Loop) -> LLVMValueRef {
+        if let ast::repeat::Loop::For { init, cond, after, block } = stmnt {
+            unsafe {
+                let for_loop = LLVMAppendBasicBlock(self.current_function, b"for_init\0".as_ptr() as _);
+                let for_cond = LLVMAppendBasicBlock(self.current_function, b"for_cond\0".as_ptr() as _);
+                let for_block = LLVMAppendBasicBlock(self.current_function, b"for_block\0".as_ptr() as _);
+                let for_after = LLVMAppendBasicBlock(self.current_function, b"for_after\0".as_ptr() as _);
+                let for_end = LLVMAppendBasicBlock(self.current_function, b"for_end\0".as_ptr() as _);
+
+                LLVMBuildBr(self.builder, for_loop);
+
+                self.current_block = for_loop;
+                LLVMPositionBuilderAtEnd(self.builder, self.current_block);
+
+                self.consume_statements(init);
+
+                LLVMBuildBr(self.builder, for_cond);
+
+                self.current_block = for_cond;
+                LLVMPositionBuilderAtEnd(self.builder, self.current_block);
+
+                let cond = self.build_cmp(cond.clone());
+                let _if = LLVMBuildCondBr(self.builder, cond, for_block, for_end);
+
+                self.current_block = for_block;
+                LLVMPositionBuilderAtEnd(self.builder, self.current_block);
+
+                self.consume_statements(block);
+
+                LLVMBuildBr(self.builder, for_after);
+
+                self.current_block = for_after;
+                LLVMPositionBuilderAtEnd(self.builder, self.current_block);
+
+                self.build_value(after.clone());
+
+                LLVMBuildBr(self.builder, for_cond);
+
+                self.current_block = for_end;
+                LLVMPositionBuilderAtEnd(self.builder, self.current_block);
+            }
+        }
+
+        0 as _
+    }
+
     fn build_function(&mut self, stmnt: &ast::function::Function) -> LLVMValueRef {
         unsafe {
             let cname = CString::new(stmnt.name.clone().unwrap_or("generic".into())).unwrap();
@@ -782,18 +840,12 @@ impl Module {
                 let value_ref = self.build_value(value.clone());
                 self.build_global_set(name_ref, value_ref, true)
             }
-            ast::statement::Statement::Assign { identifier, op, value } => {
-                let name_ref = self.build_string(identifier);
-                let value_ref = self.build_value(value.clone());
-                let old_ref = self.build_global_get(name_ref, false);
-                let new_ref = self.build_generic_op(&op.into(), old_ref, value_ref);
-                self.build_global_set(name_ref, new_ref, true)
-            }
-            ast::statement::Statement::Call(call) => self.build_value(call.clone()),
+            ast::statement::Statement::Expression(call) => self.build_value(call.clone()),
             ast::statement::Statement::Function(func) => self.build_function(func),
             ast::statement::Statement::Return(val) => self.build_value(val.clone()),
             ast::statement::Statement::If(ifelse) => self.build_if(ifelse),
             ast::statement::Statement::Switch(switch) => self.build_switch(switch),
+            ast::statement::Statement::Loop(repeat) => self.build_loop(repeat),
             _ => 0 as _,
         }
     }

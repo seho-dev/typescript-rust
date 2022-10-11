@@ -1,4 +1,4 @@
 
-function normalOne(one: number) {
-
+function normalOne(one: number): number {
+    return one + 2
 }
