@@ -8,7 +8,7 @@ pub unsafe extern "C" fn global_null() -> *const Value {
 
 pub unsafe extern "C" fn global_get(ctx: *mut Context, name: *const Value) -> *const Value {
     #[cfg(feature = "trace")]
-    log::trace!(target: "typescript.callback", "!! get {:?} !!", *name);
+    log::trace!("!! get {:?} !!", *name);
 
     let val = match *name {
         Value::Str(ref s) => {
@@ -32,18 +32,12 @@ pub unsafe extern "C" fn global_get(ctx: *mut Context, name: *const Value) -> *c
     0 as _
 }
 
-pub unsafe extern "C" fn global_get_func(ctx: *mut Context, name: *const Value) -> usize {
+pub unsafe extern "C" fn get_func_addr(val: *const Value) -> u64 {
     #[cfg(feature = "trace")]
-    log::trace!(target: "typescript.callback", "!! get func {:?} !!", *name);
+    log::trace!("!! get func {:?} !!", *val);
 
-    if let Value::Array(ref a) = *name {
-        if let Value::Str(ref s) = *a[0] {
-            let val = (*ctx).variables.get(s);
-
-            // if let Value::Lambda(v) = **val.unwrap() {
-            //     return v;
-            // }
-        }
+    if let Value::Function(f) = *val {
+        return f;
     }
 
     0
@@ -55,7 +49,7 @@ pub unsafe extern "C" fn global_set(
     val: *mut Value,
 ) -> *const Value {
     #[cfg(feature = "trace")]
-    log::trace!(target: "typescript.callback", "!! set {:?} = {:?} !!", *name, *val);
+    log::trace!("!! set {:?} = {:?} !!", *name, *val);
 
     match *name {
         Value::Str(ref s) => {
@@ -78,6 +72,35 @@ pub unsafe extern "C" fn global_set(
     0 as _
 }
 
+pub unsafe extern "C" fn get_attr(obj: *const Value, name: *const Value) -> *const Value {
+    #[cfg(feature = "trace")]
+    log::trace!("!! get-attr {:?} . {:?} !!", *obj, *name);
+
+    if let Value::Str(ref name) = *name {
+        match *obj {
+            Value::Object(ref a) => {
+                if let Some(val) = a.get(name) {
+                    Arc::into_raw(val.clone())
+                }
+                else {
+                    Arc::into_raw(Arc::new(Value::Null))
+                }
+            }
+            Value::Class(ref c) => {
+                let clss = c.lock().unwrap();
+                let val = clss.get_attribute(name);
+                Arc::into_raw(val)
+            }
+            _ => {
+                Arc::into_raw(Arc::new(Value::Null))
+            }
+        }
+    }
+    else {
+        Arc::into_raw(Arc::new(Value::Null))
+    }
+}
+
 pub unsafe extern "C" fn to_bool(val: *const Value) -> i8 {
     let val = Arc::from_raw(val);
     let bool = val.to_bool();
@@ -87,7 +110,7 @@ pub unsafe extern "C" fn to_bool(val: *const Value) -> i8 {
 
 pub unsafe extern "C" fn add(left: *const Value, right: *const Value) -> *const Value {
     #[cfg(feature = "trace")]
-    log::trace!(target: "typescript.callback", "!! add {:?} {:?} !!", *left, *right);
+    log::trace!("!! add {:?} {:?} !!", *left, *right);
 
     let left_rc = Arc::from_raw(left);
     let right_rc = Arc::from_raw(right);
@@ -103,7 +126,7 @@ pub unsafe extern "C" fn add(left: *const Value, right: *const Value) -> *const 
 
 pub unsafe extern "C" fn sub(left: *const Value, right: *const Value) -> *const Value {
     #[cfg(feature = "trace")]
-    log::trace!(target: "typescript.callback", "!! sub !!");
+    log::trace!("!! sub !!");
 
     let left_rc = Arc::from_raw(left);
     let right_rc = Arc::from_raw(right);
@@ -119,7 +142,7 @@ pub unsafe extern "C" fn sub(left: *const Value, right: *const Value) -> *const 
 
 pub unsafe extern "C" fn mul(left: *const Value, right: *const Value) -> *const Value {
     #[cfg(feature = "trace")]
-    log::trace!(target: "typescript.callback", "!! mul !!");
+    log::trace!("!! mul !!");
 
     let left_rc = Arc::from_raw(left);
     let right_rc = Arc::from_raw(right);
@@ -135,7 +158,7 @@ pub unsafe extern "C" fn mul(left: *const Value, right: *const Value) -> *const 
 
 pub unsafe extern "C" fn div(left: *const Value, right: *const Value) -> *const Value {
     #[cfg(feature = "trace")]
-    log::trace!(target: "typescript.callback", "!! div !!");
+    log::trace!("!! div !!");
 
     let left_rc = Arc::from_raw(left);
     let right_rc = Arc::from_raw(right);
@@ -151,7 +174,7 @@ pub unsafe extern "C" fn div(left: *const Value, right: *const Value) -> *const 
 
 pub unsafe extern "C" fn _mod(left: *const Value, right: *const Value) -> *const Value {
     #[cfg(feature = "trace")]
-    log::trace!(target: "typescript.callback", "!! mod !!");
+    log::trace!("!! mod !!");
 
     let left_rc = Arc::from_raw(left);
     let right_rc = Arc::from_raw(right);
@@ -167,7 +190,7 @@ pub unsafe extern "C" fn _mod(left: *const Value, right: *const Value) -> *const
 
 pub unsafe extern "C" fn gt(left: *const Value, right: *const Value) -> *const Value {
     #[cfg(feature = "trace")]
-    log::trace!(target: "typescript.callback", "!! gt !!");
+    log::trace!("!! gt !!");
 
     let left_rc = Arc::from_raw(left);
     let right_rc = Arc::from_raw(right);
@@ -183,7 +206,7 @@ pub unsafe extern "C" fn gt(left: *const Value, right: *const Value) -> *const V
 
 pub unsafe extern "C" fn gte(left: *const Value, right: *const Value) -> *const Value {
     #[cfg(feature = "trace")]
-    log::trace!(target: "typescript.callback", "!! gte !!");
+    log::trace!("!! gte !!");
 
     let left_rc = Arc::from_raw(left);
     let right_rc = Arc::from_raw(right);
@@ -199,7 +222,7 @@ pub unsafe extern "C" fn gte(left: *const Value, right: *const Value) -> *const 
 
 pub unsafe extern "C" fn lt(left: *const Value, right: *const Value) -> *const Value {
     #[cfg(feature = "trace")]
-    log::trace!(target: "typescript.callback", "!! lt !!");
+    log::trace!("!! lt !!");
 
     let left_rc = Arc::from_raw(left);
     let right_rc = Arc::from_raw(right);
@@ -215,7 +238,7 @@ pub unsafe extern "C" fn lt(left: *const Value, right: *const Value) -> *const V
 
 pub unsafe extern "C" fn lte(left: *const Value, right: *const Value) -> *const Value {
     #[cfg(feature = "trace")]
-    log::trace!(target: "typescript.callback", "!! lte !!");
+    log::trace!("!! lte !!");
 
     let left_rc = Arc::from_raw(left);
     let right_rc = Arc::from_raw(right);
@@ -231,7 +254,7 @@ pub unsafe extern "C" fn lte(left: *const Value, right: *const Value) -> *const 
 
 pub unsafe extern "C" fn eq(left: *const Value, right: *const Value) -> *const Value {
     #[cfg(feature = "trace")]
-    log::trace!(target: "typescript.callback", "!! eq !!");
+    log::trace!("!! eq !!");
 
     let left_rc = Arc::from_raw(left);
     let right_rc = Arc::from_raw(right);
@@ -241,7 +264,7 @@ pub unsafe extern "C" fn eq(left: *const Value, right: *const Value) -> *const V
 
 pub unsafe extern "C" fn neq(left: *const Value, right: *const Value) -> *const Value {
     #[cfg(feature = "trace")]
-    log::trace!(target: "typescript.callback", "!! neq !!");
+    log::trace!("!! neq !!");
 
     let left_rc = Arc::from_raw(left);
     let right_rc = Arc::from_raw(right);
@@ -251,7 +274,7 @@ pub unsafe extern "C" fn neq(left: *const Value, right: *const Value) -> *const 
 
 pub unsafe extern "C" fn and(left: *const Value, right: *const Value) -> *const Value {
     #[cfg(feature = "trace")]
-    log::trace!(target: "typescript.callback", "!! and !!");
+    log::trace!("!! and !!");
 
     let left_rc = Arc::from_raw(left);
     let right_rc = Arc::from_raw(right);
@@ -261,7 +284,7 @@ pub unsafe extern "C" fn and(left: *const Value, right: *const Value) -> *const 
 
 pub unsafe extern "C" fn or(left: *const Value, right: *const Value) -> *const Value {
     #[cfg(feature = "trace")]
-    log::trace!(target: "typescript.callback", "!! or !!");
+    log::trace!("!! or !!");
 
     let left_rc = Arc::from_raw(left);
     let right_rc = Arc::from_raw(right);
@@ -269,26 +292,10 @@ pub unsafe extern "C" fn or(left: *const Value, right: *const Value) -> *const V
     Arc::into_raw(Arc::new(Value::Boolean(left_rc.to_bool() || right_rc.to_bool())))
 }
 
-pub extern "C" fn array_new() -> *const Value {
-    #[cfg(feature = "trace")]
-    log::trace!(target: "typescript.callback", "!! new array !!");
-    Arc::into_raw(Arc::new(Value::Array(Vec::new())))
-}
-
-pub unsafe extern "C" fn array_push(arr: *mut Value, v: *mut Value) -> *const Value {
-    #[cfg(feature = "trace")]
-    log::trace!(target: "typescript.callback", "!! pushing value !! {:?} {:?}", *arr, *v);
-
-    if let Value::Array(ref mut a) = *arr {
-        a.push(Arc::from_raw(v));
-    }
-
-    &Value::Null as *const _
-}
 
 pub extern "C" fn string_new() -> *const Value {
     #[cfg(feature = "trace")]
-    log::trace!(target: "typescript.callback", "!! new string !!");
+    log::trace!("!! new string !!");
     Arc::into_raw(Arc::new(Value::Str("".to_owned())))
 }
 
@@ -302,7 +309,7 @@ pub extern "C" fn string_copy(v: *const Value) -> *const Value {
 
 pub unsafe extern "C" fn string_from(bytes: *mut i8) -> *const Value {
     #[cfg(feature = "trace")]
-    log::trace!(target: "typescript.callback", "!! string from !!");
+    log::trace!("!! string from !!");
     // let data = CString::from_raw(bytes);
     let data = CStr::from_ptr(bytes);
     let owned = data.to_str().unwrap().to_string();
@@ -311,13 +318,13 @@ pub unsafe extern "C" fn string_from(bytes: *mut i8) -> *const Value {
 
 pub extern "C" fn number_new(v: f64) -> *const Value {
     #[cfg(feature = "trace")]
-    log::trace!(target: "typescript.callback", "!! new number {} !!", v);
+    log::trace!("!! new number {} !!", v);
     Arc::into_raw(Arc::new(Value::Number(v)))
 }
 
 pub unsafe extern "C" fn value_delete(a: *const Value) -> *const Value {
     #[cfg(feature = "trace")]
-    log::trace!(target: "typescript.callback", "!! delete value {:?} !!", *a);
+    log::trace!("!! delete value {:?} !!", *a);
 
     Arc::from_raw(a);
 

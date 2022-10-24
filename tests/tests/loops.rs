@@ -1,5 +1,5 @@
 use typescript_jit::{Runtime, Value};
-use typescript_tests::TestLogger;
+use typescript_tests::{TestLogger, check};
 
 #[test]
 fn run_loops() -> Result<(), String> {
@@ -13,15 +13,8 @@ fn run_loops() -> Result<(), String> {
         Some("results/loops.ir".into())
     ).map_err(|e| e.to_string())?;
 
-    if let Some(n) = module.namespace.variables.get("sum") {
-        if let Value::Number(n) = &**n {
-            if *n == 3.0 {
-                return Ok(())
-            }
-        }
-        Err(format!("expected {:?} to be 3.0", n))
-    }
-    else {
-        Err("expected value 'sum'".into())
-    }
+    check(module.clone(), "sum", 3.0)?;
+    check(module.clone(), "forofSum", 6.0)?;
+
+    Ok(())
 }

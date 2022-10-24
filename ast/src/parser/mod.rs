@@ -311,6 +311,14 @@ fn parse_statement(stmnt: Pair<Rule>) -> Option<Statement> {
             let repeat = parse_for(stmnt);
             Some(Statement::Loop(repeat))
         }
+        Rule::ForOf => {
+            let repeat = parse_for_of(stmnt);
+            Some(Statement::Loop(repeat))
+        }
+        Rule::ForIn => {
+            let repeat = parse_for_in(stmnt);
+            Some(Statement::Loop(repeat))
+        }
         Rule::Function => {
             let func = parse_function(stmnt);
             Some(Statement::Function(func))
@@ -455,6 +463,44 @@ fn parse_for(stmnt: Pair<Rule>) -> Loop {
         init,
         cond,
         after,
+        block,
+    }
+}
+
+fn parse_for_of(stmnt: Pair<Rule>) -> Loop {
+    let mut inner = stmnt.into_inner();
+    let name = inner.next().unwrap().as_str().to_string();
+    let value = parse_value(inner.next().unwrap());
+    let mut block = Vec::new();
+
+    for st in inner.next().unwrap().into_inner() {
+        if let Some(st) = parse_statement(st) {
+            block.push(st);
+        }
+    }
+
+    Loop::ForOf {
+        name,
+        value,
+        block,
+    }
+}
+
+fn parse_for_in(stmnt: Pair<Rule>) -> Loop {
+    let mut inner = stmnt.into_inner();
+    let name = inner.next().unwrap().as_str().to_string();
+    let value = parse_value(inner.next().unwrap());
+    let mut block = Vec::new();
+
+    for st in inner.next().unwrap().into_inner() {
+        if let Some(st) = parse_statement(st) {
+            block.push(st);
+        }
+    }
+
+    Loop::ForIn {
+        name,
+        value,
         block,
     }
 }

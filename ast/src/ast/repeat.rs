@@ -14,6 +14,14 @@ pub enum Loop {
         after: Arc<Value>,
         block: Vec<Statement>,
     },
-    ForOf,
-    ForIn,
+    ForOf{
+        name: String,
+        value: Arc<Value>,
+        block: Vec<Statement>,
+    },
+    ForIn{
+        name: String,
+        value: Arc<Value>,
+        block: Vec<Statement>,
+    },
 }

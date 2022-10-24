@@ -18,6 +18,7 @@ mod context;
 mod error;
 mod module;
 mod value;
+mod stdlib;
 
 pub use module::Module;
 pub use value::Value;

@@ -45,8 +45,8 @@ Switch = { "switch" ~ "(" ~ Expression ~ ")" ~ "{" ~ (Case | Default)* ~ "}" }
 
 While = { "while" ~ "(" ~ Expression ~ ")" ~ Block }
 For = { "for" ~ "(" ~ Let ~ ";" ~ Expression ~ ";" ~ Expression ~ ")" ~ Block }
-ForOf = { "for" ~ "(" ~ Let ~ "of" ~ Expression ~ ")" ~ Block }
-ForIn = { "for" ~ "(" ~ Let ~ "in" ~ Expression ~ ")" ~ Block }
+ForOf = { "for" ~ "(" ~ ("const" | "let") ~ Name ~ "of" ~ Expression ~ ")" ~ Block }
+ForIn = { "for" ~ "(" ~ ("const" | "let") ~ Name ~ "in" ~ Expression ~ ")" ~ Block }
 
 NameList = { Name ~ ("," ~ Name)* }
 IdentifierList = { Identifier ~ ("," ~ Identifier)* }
@@ -85,7 +85,7 @@ Function = { "function" ~ Name ~ TemplateDefinition? ~ FunctionDefinition ~ Bloc
 Closur = { FunctionDefinition ~ "=>" ~ Block }
 
 Block = { "{" ~ Statement* ~ "}" }
-Statement = { ( Let | Const | If | Switch | While | For | ForOf | ForIn | Function | Break | Return | Block | Assign  ) ~ ";"? }
+Statement = { ( Let | Const | If | Switch | While | ForOf | ForIn | For | Function | Break | Return | Block | Assign  ) ~ ";"? }
 
 Import = { "import" ~ String }
 ImportName = { Name ~ ("as" ~ Name)? }

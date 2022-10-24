@@ -1,30 +1,7 @@
 use std::{error::Error, sync::Arc};
 
 use typescript_jit::{Module, Runtime, Value};
-use typescript_tests::TestLogger;
-
-fn check(module: Arc<Module>, name: &str, goal: f64) -> Result<(), String> {
-    match module.namespace.variables.get(name) {
-        Some(var) => {
-            match &**var {
-                Value::Number(n) => {
-                    if *n == goal {
-                        Ok(())
-                    }
-                    else {
-                        Err(format!("number in '{}' not as expected {} != {}", name, n, goal))
-                    }
-                }
-                _ => {
-                    Err(format!("expected number in '{}' but got: {:?}", name, var))
-                }
-            }
-        }
-        None => {
-            Err(format!("expected variable '{}'", name))
-        }
-    }
-}
+use typescript_tests::{TestLogger, check};
 
 #[test]
 fn run_assigns() -> Result<(), String> {
