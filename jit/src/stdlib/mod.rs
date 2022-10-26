@@ -1,6 +1,6 @@
 use std::{collections::HashMap, sync::{Arc, Weak, Mutex}};
 
-use crate::{value::Class, Module, Value};
+use crate::{value::Class, Value, builder::Builder};
 
 #[derive(Debug)]
 pub struct Array {
@@ -33,7 +33,7 @@ impl Array {
             })
         })
     }
-    pub fn register(module: &mut Module) {
+    pub fn register(module: &mut Builder) {
         extern "C" fn array_new() -> *const Value {
             #[cfg(feature = "trace")]
             log::trace!("!! new array !!");
@@ -112,7 +112,7 @@ impl ArrayIterator {
         })
     }
 
-    pub fn register(module: &mut Module) {
+    pub fn register(module: &mut Builder) {
         module.add_fn("__array_iterator_next", array_iterator_next as _, 1);
     }
 }

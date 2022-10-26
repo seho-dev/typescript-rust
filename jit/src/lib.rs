@@ -13,6 +13,7 @@ use sha2::Digest;
 
 use typescript_ast::parser;
 
+mod builder;
 mod callbacks;
 mod context;
 mod error;
@@ -64,7 +65,18 @@ impl Runtime {
             log::info!("parse time: {}.{:06}", dur.as_secs(), dur.subsec_micros());
 
             let start = SystemTime::now();
-            let module = Arc::new(Module::from_ast(hash.clone(), ast_module, save_ir)?);
+            let mut builder = builder::Builder::new();
+
+            builder
+                .id(hash.clone())
+                .standard_library();
+
+            if let Some(save_ir) = save_ir {
+                builder.save_ir(&save_ir);
+            }
+            
+            let module = builder.build(&ast_module)?;
+            // let module = Arc::new(Module::from_ast(hash.clone(), ast_module, save_ir)?);
             let dur = start.elapsed().unwrap();
             log::info!("build time: {}.{:06}", dur.as_secs(), dur.subsec_micros());
 

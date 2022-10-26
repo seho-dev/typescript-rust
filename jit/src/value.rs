@@ -3,8 +3,6 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use crate::Module;
-
 pub trait Class: std::fmt::Debug {
     fn set_attribute(&mut self, name: &str, val: Arc<Value>);
 
