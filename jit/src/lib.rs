@@ -49,6 +49,7 @@ impl Runtime {
     }
 
     pub fn load_file<P: AsRef<Path>>(&self, filename: P, save_ir: Option<String>) -> Result<Arc<Module>, Box<dyn Error>> {
+        let all_start = SystemTime::now();
         let start = SystemTime::now();
         let source = std::fs::read_to_string(filename)?;
         let hash = source_hash(&source);
@@ -56,7 +57,7 @@ impl Runtime {
         log::info!("read time: {}.{:06}", dur.as_secs(), dur.subsec_micros());
 
         let opt_module = self.modules.read().unwrap().get(&hash).cloned();
-        if let Some(module) = opt_module {
+        let ret = if let Some(module) = opt_module {
             Ok(module.clone())
         } else {
             let start = SystemTime::now();
@@ -88,7 +89,12 @@ impl Runtime {
             log::info!("run time: {}.{:06}", dur.as_secs(), dur.subsec_micros());
 
             Ok(module)
-        }
+        };
+
+        let dur = all_start.elapsed().unwrap();
+        log::info!("overall time: {}.{:06}", dur.as_secs(), dur.subsec_micros());
+
+        ret
     }
 }
 
