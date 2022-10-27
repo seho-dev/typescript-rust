@@ -300,12 +300,9 @@ impl Builder {
     }
 
     pub fn build(&mut self, module: &ast::Module) -> Result<Arc<Module>, JitError> {
-        log::info!("init");
         self.init();
-        log::info!("main");
         self.build_main(module);
 
-        log::info!("new module");
         let mut module = Module::new(self.id.clone().unwrap_or(Vec::new()));
 
         unsafe {

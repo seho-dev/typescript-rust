@@ -159,7 +159,7 @@ unsafe fn build_for_of(builder: &mut Builder, name: &String, value: &Arc<Value>,
     let one = LLVMConstInt(LLVMInt8TypeInContext(builder.context), 1, 0);
     let cond = LLVMBuildICmp(
         builder.builder, 
-        LLVMIntPredicate::LLVMIntEQ, 
+        LLVMIntPredicate::LLVMIntNE, 
         cond, 
         one, 
         b"cmp\0".as_ptr() as _

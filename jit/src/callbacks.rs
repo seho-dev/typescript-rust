@@ -1,5 +1,7 @@
 use std::{sync::Arc, ffi::CStr};
 
+use crate::stdlib::Array;
+
 use super::{value::Value, context::Context};
 
 pub unsafe extern "C" fn global_null() -> *const Value {
@@ -22,6 +24,20 @@ pub unsafe extern "C" fn global_get(ctx: *mut Context, name: *const Value) -> *c
                 None
             }
         }
+        Value::Class(ref clss) => {
+            let mut a = clss.lock().unwrap();
+            if let Some(arr) = a.as_any().downcast_ref::<Array>() {
+                if let Value::Str(ref s) = *arr.data[0] {
+                    (*ctx).variables.get(s)
+                }
+                else {
+                    None
+                }
+            }
+            else {
+                None
+            }
+        }
         _ => None,
     };
 
@@ -36,8 +52,14 @@ pub unsafe extern "C" fn get_func_addr(val: *const Value) -> u64 {
     #[cfg(feature = "trace")]
     log::trace!("!! get func {:?} !!", *val);
 
-    if let Value::Function(f) = *val {
-        return f;
+    match &*val {
+        Value::Function(f) => {
+            return *f;
+        }
+        Value::Method { class, func } => {
+            return *func;
+        }
+        _ => {}
     }
 
     0
@@ -66,6 +88,17 @@ pub unsafe extern "C" fn global_set(
                 );
             }
         }
+        Value::Class(ref clss) => {
+            let mut a = clss.lock().unwrap();
+            if let Some(arr) = a.as_any().downcast_ref::<Array>() {
+                if let Value::Str(ref s) = *arr.data[0] {
+                    (*ctx).variables.insert(
+                        s.clone(),
+                        Arc::from_raw(val),
+                    );
+                }
+            }
+        }
         _ => {}
     }
 
@@ -76,29 +109,14 @@ pub unsafe extern "C" fn get_attr(obj: *const Value, name: *const Value) -> *con
     #[cfg(feature = "trace")]
     log::trace!("!! get-attr {:?} . {:?} !!", *obj, *name);
 
-    if let Value::Str(ref name) = *name {
-        match *obj {
-            Value::Object(ref a) => {
-                if let Some(val) = a.get(name) {
-                    Arc::into_raw(val.clone())
-                }
-                else {
-                    Arc::into_raw(Arc::new(Value::Null))
-                }
-            }
-            Value::Class(ref c) => {
-                let clss = c.lock().unwrap();
-                let val = clss.get_attribute(name);
-                Arc::into_raw(val)
-            }
-            _ => {
-                Arc::into_raw(Arc::new(Value::Null))
-            }
-        }
-    }
-    else {
-        Arc::into_raw(Arc::new(Value::Null))
-    }
+    let objv = Arc::from_raw(obj);
+    let namev = Arc::from_raw(name);
+
+    let ret = objv.get(namev.clone());
+
+    Arc::into_raw(objv);
+    Arc::into_raw(namev);
+    Arc::into_raw(ret)
 }
 
 pub unsafe extern "C" fn to_bool(val: *const Value) -> i8 {
