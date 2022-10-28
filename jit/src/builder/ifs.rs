@@ -21,7 +21,7 @@ pub unsafe fn build_if(builder: &mut Builder, stmnt: &IfElse) -> LLVMValueRef {
     // let mut incoming_value = Vec::new();
     // let mut incoming_block = Vec::new();
 
-    for i in 0..stmnt.elseifs.len() {
+    for _ in 0..stmnt.elseifs.len() {
         elseifs.push((
             LLVMAppendBasicBlock(builder.current_function, b"elseif_check\0".as_ptr() as _),
             LLVMAppendBasicBlock(builder.current_function, b"elseif\0".as_ptr() as _),
@@ -45,7 +45,7 @@ pub unsafe fn build_if(builder: &mut Builder, stmnt: &IfElse) -> LLVMValueRef {
     builder.current_block = _then;
     LLVMPositionBuilderAtEnd(builder.builder, builder.current_block);
 
-    let if_v = build_statements(builder, &stmnt.block);
+    let _if_v = build_statements(builder, &stmnt.block);
 
     LLVMBuildBr(builder.builder, _merge);
     // let mut _then = LLVMGetInsertBlock(self.builder);
@@ -69,7 +69,7 @@ pub unsafe fn build_if(builder: &mut Builder, stmnt: &IfElse) -> LLVMValueRef {
         builder.current_block = body;
         LLVMPositionBuilderAtEnd(builder.builder, builder.current_block);
 
-        let elseif_v = build_statements(builder, &elseif.block);
+        let _elseif_v = build_statements(builder, &elseif.block);
 
         LLVMBuildBr(builder.builder, _merge);
         // let mut _then = LLVMGetInsertBlock(self.builder);
@@ -80,7 +80,7 @@ pub unsafe fn build_if(builder: &mut Builder, stmnt: &IfElse) -> LLVMValueRef {
     builder.current_block = _else;
     LLVMPositionBuilderAtEnd(builder.builder, builder.current_block);
 
-    let else_v = build_statements(builder, &stmnt.els);
+    let _else_v = build_statements(builder, &stmnt.els);
 
     LLVMBuildBr(builder.builder, _merge);
     // let mut _then = LLVMGetInsertBlock(self.builder);

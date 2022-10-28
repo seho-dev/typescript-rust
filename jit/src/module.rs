@@ -1,13 +1,13 @@
 use std::{sync::Arc, time::SystemTime};
 
-use llvm_sys::execution_engine::{LLVMDisposeExecutionEngine, LLVMOpaqueExecutionEngine};
+use llvm_sys::execution_engine::{LLVMDisposeExecutionEngine, LLVMExecutionEngineRef};
 
-use super::{callbacks, context::Context, value::Value};
+use super::context::Context;
 
 pub struct Module {
     id: Vec<u8>,
-    pub(crate) init_fn: extern "C" fn(),
-    pub(crate) ee: *mut LLVMOpaqueExecutionEngine,
+    pub(crate) init_fn: Option<extern "C" fn()>,
+    pub(crate) ee: LLVMExecutionEngineRef,
     pub namespace: Arc<Context>,
 }
 
@@ -15,7 +15,7 @@ impl Module {
     pub fn new(id: Vec<u8>) -> Self {
         Self {
             id,
-            init_fn: unsafe { std::mem::transmute(0u64) },
+            init_fn: None,
             ee: 0 as _,
             namespace: Context::new(),
         }
@@ -27,7 +27,9 @@ impl Module {
 
     pub fn run(&self) {
         let start = SystemTime::now();
-        (self.init_fn)();
+        if let Some(func) = self.init_fn {
+            (func)();
+        }
         let dur = start.elapsed().unwrap();
         log::info!("main: {}.{:06}", dur.as_secs(), dur.subsec_micros());
     }

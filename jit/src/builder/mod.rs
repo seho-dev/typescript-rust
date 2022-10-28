@@ -296,24 +296,25 @@ impl Builder {
         let dur = start.elapsed().unwrap();
         log::info!("llvm compilation: {}.{:06}", dur.as_secs(), dur.subsec_micros());
 
-        module.init_fn = std::mem::transmute(addr);
+        module.init_fn = Some(std::mem::transmute(addr));
     }
 
     pub fn build(&mut self, module: &ast::Module) -> Result<Arc<Module>, JitError> {
         self.init();
-        self.build_main(module);
+        self.build_main(module)?;
 
-        let mut module = Module::new(self.id.clone().unwrap_or(Vec::new()));
+        let module_id = self.id.clone().unwrap_or(Vec::new());
+        let mut module = Module::new(module_id);
 
         unsafe {
             if let Some(ir) = &self.save_ir {
+                log::debug!("save ir");
                 let data = LLVMPrintModuleToString(self.module);
                 let cast = CStr::from_ptr(data);
                 let mut dump = File::create(ir).unwrap();
                 dump.write(cast.to_bytes()).unwrap();
             }
 
-            module.ee = std::mem::zeroed();
             let mut out = std::mem::zeroed();
 
             LLVMCreateExecutionEngineForModule(&mut module.ee, self.module, &mut out);
