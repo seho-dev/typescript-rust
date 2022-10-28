@@ -38,7 +38,7 @@ impl Value {
         }
     }
 
-    pub fn set(&mut self, name: Arc<Value>, val: Arc<Value>) {}
+    pub fn set(&mut self, _name: Arc<Value>, _val: Arc<Value>) {}
 
     pub fn get(&self, name: Arc<Value>) -> Arc<Value> {
         match self {
@@ -93,14 +93,14 @@ impl PartialEq for Value {
                     return *a == *b;
                 }
             }
-            Self::Method { class, func } => {
+            Self::Method { class: _, func } => {
                 let a = func;
-                if let Self::Method { class, func } = other {
+                if let Self::Method { class: _, func } = other {
                     return *a == *func;
                 }
             }
-            Self::Class(a) => {
-                if let Self::Class(b) = other {
+            Self::Class(_a) => {
+                if let Self::Class(_b) = other {
                     return false;
                 }
             }

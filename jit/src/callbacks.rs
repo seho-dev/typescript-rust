@@ -56,7 +56,7 @@ pub unsafe extern "C" fn get_func_addr(val: *const Value) -> u64 {
         Value::Function(f) => {
             return *f;
         }
-        Value::Method { class, func } => {
+        Value::Method { class: _, func } => {
             return *func;
         }
         _ => {}
@@ -114,15 +114,15 @@ pub unsafe extern "C" fn get_attr(obj: *const Value, name: *const Value) -> *con
 
     let ret = objv.get(namev.clone());
 
-    Arc::into_raw(objv);
-    Arc::into_raw(namev);
+    let _ = Arc::into_raw(objv);
+    let _ = Arc::into_raw(namev);
     Arc::into_raw(ret)
 }
 
 pub unsafe extern "C" fn to_bool(val: *const Value) -> i8 {
     let val = Arc::from_raw(val);
     let bool = val.to_bool();
-    Arc::into_raw(val);
+    let _ = Arc::into_raw(val);
     bool as _
 }
 

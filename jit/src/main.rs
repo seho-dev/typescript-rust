@@ -8,7 +8,7 @@ struct MyLogger{
 }
 
 impl log::Log for MyLogger {
-    fn enabled(&self, metadata: &log::Metadata) -> bool {
+    fn enabled(&self, _metadata: &log::Metadata) -> bool {
         false
     }
 

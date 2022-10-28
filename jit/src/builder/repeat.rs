@@ -189,7 +189,7 @@ pub unsafe fn build_loop(builder: &mut Builder, stmnt: &Loop) {
         Loop::ForOf { name, value, block } => {
             build_for_of(builder, name, value, block);
         }
-        Loop::ForIn { name, value, block } => {}
-        Loop::While {cond, block} => {}
+        Loop::ForIn { name: _, value: _, block: _ } => {}
+        Loop::While { cond: _, block: _} => {}
     }
 }

@@ -1,6 +1,4 @@
-use std::{error::Error, sync::Arc};
-
-use typescript_jit::{Module, Runtime, Value};
+use typescript_jit::Runtime;
 use typescript_tests::{TestLogger, check};
 
 #[test]

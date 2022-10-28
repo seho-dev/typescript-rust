@@ -186,24 +186,24 @@ pub fn build_string(builder: &mut Builder, s: &str) -> LLVMValueRef {
     }
 }
 
-fn build_op(
-    builder: &mut Builder,
-    op: &Operation,
-    left: LLVMValueRef,
-    right: LLVMValueRef,
-) -> LLVMValueRef {
-    unsafe {
-        match op {
-            Operation::Add => {
-                LLVMBuildFAdd(builder.builder, left, right, b"__add\0".as_ptr() as _)
-            }
-            Operation::Sub => {
-                LLVMBuildFSub(builder.builder, left, right, b"__sub\0".as_ptr() as _)
-            }
-            _ => 0 as _,
-        }
-    }
-}
+// fn build_op(
+//     builder: &mut Builder,
+//     op: &Operation,
+//     left: LLVMValueRef,
+//     right: LLVMValueRef,
+// ) -> LLVMValueRef {
+//     unsafe {
+//         match op {
+//             Operation::Add => {
+//                 LLVMBuildFAdd(builder.builder, left, right, b"__add\0".as_ptr() as _)
+//             }
+//             Operation::Sub => {
+//                 LLVMBuildFSub(builder.builder, left, right, b"__sub\0".as_ptr() as _)
+//             }
+//             _ => 0 as _,
+//         }
+//     }
+// }
 
 pub fn build_generic_op(
     builder: &Builder,

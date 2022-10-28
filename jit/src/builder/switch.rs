@@ -16,7 +16,7 @@ pub unsafe fn build_switch(builder: &mut Builder, switch: &Switch) -> LLVMValueR
 
     let mut cases = Vec::new();
 
-    for i in 0..switch.branches.len() {
+    for _ in 0..switch.branches.len() {
         cases.push((
             LLVMAppendBasicBlock(builder.current_function, b"case_check\0".as_ptr() as _),
             LLVMAppendBasicBlock(builder.current_function, b"case\0".as_ptr() as _),

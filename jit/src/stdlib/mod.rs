@@ -173,7 +173,7 @@ impl ArrayIterator {
 }
 
 impl Class for ArrayIterator {
-    fn set(&mut self, name: Arc<Value>, val: Arc<Value>) {}
+    fn set(&mut self, _name: Arc<Value>, _val: Arc<Value>) {}
 
     fn get(&self, name: Arc<Value>) -> Arc<Value> {
         match &*name {
