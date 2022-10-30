@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use super::{
     class::Class, function::Function, ifelse::IfElse, interface::Interface, repeat::Loop,
-    switch::Switch, typedefinition::TypeDefinition, value::Value,
+    switch::Switch, trycatch::TryCatch, typedefinition::TypeDefinition, value::Value,
 };
 
 #[derive(Debug)]
@@ -18,4 +18,6 @@ pub enum Statement {
     Class(Class),
     Interface(Interface),
     Type(TypeDefinition),
+    TryCatch(TryCatch),
+    Throw(Arc<Value>),
 }

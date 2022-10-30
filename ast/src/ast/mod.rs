@@ -7,6 +7,7 @@ pub mod operation;
 pub mod repeat;
 pub mod statement;
 pub mod switch;
+pub mod trycatch;
 pub mod tstype;
 pub mod typedefinition;
 pub mod value;

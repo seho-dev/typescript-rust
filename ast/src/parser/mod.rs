@@ -8,7 +8,7 @@ use crate::ast::{
     statement::Statement,
     tstype::TsType,
     typedefinition::{TypeBlock, TypeDefinition},
-    value::Value, switch::{Switch, Case}, ifelse::{IfElse, ElseIf}, repeat::Loop,
+    value::Value, switch::{Switch, Case}, ifelse::{IfElse, ElseIf}, repeat::Loop, trycatch::TryCatch,
 };
 use pest::{iterators::Pair, Parser};
 use pest_derive::Parser;
@@ -326,7 +326,39 @@ fn parse_statement(stmnt: Pair<Rule>) -> Option<Statement> {
         Rule::Return => {
             Some(Statement::Return(parse_value(stmnt.into_inner().next().unwrap())))
         }
+        Rule::TryCatch => {
+            Some(Statement::TryCatch(parse_trycatch(stmnt)))
+        }
+        Rule::Throw => {
+            Some(Statement::Throw(parse_value(stmnt.into_inner().next().unwrap())))
+        }
         _ => None,
+    }
+}
+
+fn parse_statements(stmnt: Pair<Rule>) -> Vec<Statement> {
+    let mut block = Vec::new();
+
+    for stmnt in stmnt.into_inner() {
+        if let Some(s) = parse_statement(stmnt) {
+            block.push(s);
+        }
+    }
+
+    block
+}
+
+fn parse_trycatch(stmnt: Pair<Rule>) -> TryCatch {
+    let mut inner = stmnt.into_inner();
+
+    let try_block = parse_statements(inner.next().unwrap());
+    let catch_name = inner.next().unwrap().as_str().into();
+    let catch_block = parse_statements(inner.next().unwrap());
+
+    TryCatch {
+        try_block,
+        catch_name,
+        catch_block,
     }
 }
 
@@ -335,12 +367,7 @@ fn parse_if(stmnt: Pair<Rule>) -> IfElse {
     let expr = inner.next().unwrap();
     let block = inner.next().unwrap();
 
-    let mut block_stmnts = Vec::new();
-    for stmnt in block.into_inner() {
-        if let Some(s) = parse_statement(stmnt) {
-            block_stmnts.push(s);
-        }
-    }
+    let block_stmnts = parse_statements(block);
 
     let mut else_block = Vec::new();
     let mut elseifs = Vec::new();

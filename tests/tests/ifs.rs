@@ -1,5 +1,5 @@
-use typescript_jit::{Runtime, Value};
-use typescript_tests::TestLogger;
+use typescript_jit::Runtime;
+use typescript_tests::{TestLogger, check};
 
 #[test]
 fn run_ifs() -> Result<(), String> {
@@ -13,25 +13,5 @@ fn run_ifs() -> Result<(), String> {
         Some("results/ifs.ir".into())
     ).map_err(|e| e.to_string())?;
 
-    match module.namespace.variables.get("c") {
-        Some(var) => {
-
-            match &**var {
-                Value::Number(n) => {
-                    if *n == 3.0 {
-                        Ok(())
-                    }
-                    else {
-                        Err(format!("number {} != 3", n))
-                    }
-                }
-                _ => {
-                    Err(format!("expected number but got: {:?}", var))
-                }
-            }
-        }
-        None => {
-            Err("expected variable 'c'".into())
-        }
-    }
+    check(module, "c", 3.0)
 }
